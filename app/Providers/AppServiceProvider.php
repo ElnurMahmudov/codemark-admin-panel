@@ -39,5 +39,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         \Awcodes\Curator\Facades\Curator::directory('media');
+
+        // Next.js ISR Content Revalidation Observers
+        \App\Models\BlogPost::observe(\App\Observers\ContentRevalidationObserver::class);
+        \App\Models\Project::observe(\App\Observers\ContentRevalidationObserver::class);
+        \App\Models\CustomerLogo::observe(\App\Observers\ContentRevalidationObserver::class);
     }
 }

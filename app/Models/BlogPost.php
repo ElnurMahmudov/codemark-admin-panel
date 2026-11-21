@@ -2,59 +2,90 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use App\Models\BlogCategory;
 use Awcodes\Curator\Models\Media;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Facades\Storage;
+use Spatie\EloquentSortable\Sortable;
+use Spatie\EloquentSortable\SortableTrait;
+use Spatie\Translatable\HasTranslations;
 
-class BlogPost extends Model
+class BlogPost extends Model implements Sortable
 {
-    use SoftDeletes;
-    
-    protected $fillable = [
-        'title',
+    use HasTranslations, SortableTrait;
+
+    public array $translatable = [
         'slug',
-        'content',
-        'image',
+        'title',
+        'excerpt',
+        'author',
+        'sections',
         'meta_title',
         'meta_description',
-        'blog_category_id',
-        'is_published',
-        'user_id',
-        'deleted_at',
     ];
 
-    public function category()
+    protected $fillable = [
+        'category_id',
+        'slug',
+        'title',
+        'excerpt',
+        'image',
+        'author',
+        'sections',
+        'order_column',
+        'published_at',
+        'is_published',
+        'views_count',
+        'meta_title',
+        'meta_description',
+    ];
+
+    protected $casts = [
+        'published_at' => 'date',
+        'is_published' => 'boolean',
+        'sections' => 'array',
+        'views_count' => 'integer',
+        'order_column' => 'integer',
+    ];
+
+    public array $sortable = [
+        'order_column_name' => 'order_column',
+        'sort_when_creating' => true,
+    ];
+
+    public function category(): BelongsTo
     {
-        return $this->belongsTo(BlogCategory::class, 'blog_category_id');
+        return $this->belongsTo(BlogCategory::class, 'category_id');
     }
 
-    public function image()
+    public function tags(): MorphToMany
+    {
+        return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    public function imageMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'image');
     }
 
-    public function getMainImageUrlAttribute(): ?string
+    public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image) return null;
-        return Media::find($this->image)?->url;
+        if (! $this->image) {
+            return null;
+        }
+
+        if (is_numeric($this->image)) {
+            return Media::find($this->image)?->url;
+        }
+
+        return str_starts_with($this->image, 'http')
+            ? $this->image
+            : Storage::disk('public')->url($this->image);
     }
 
-    public function user(): BelongsTo
+    public function scopePublished($query)
     {
-        return $this->belongsTo(AdminUser::class, 'user_id')->withDefault(function ($user, $post) {
-            // Əgər user_id sütunu null-dursa (heç vaxt təyin edilməyibsə)
-            if (is_null($post->user_id)) {
-                return [
-                    'name' => 'Unknown User',
-                ];
-            }
-
-            // Əgər user_id doludursa, amma AdminUser tapılmırsa (silinibsə)
-            return [
-                'name' => 'Deleted User',
-            ];
-        });
+        return $query->where('is_published', true)->orderBy('order_column');
     }
 }

@@ -5,9 +5,7 @@ namespace App\Filament\Resources\BlogPosts;
 use App\Filament\Resources\BlogPosts\Pages\CreateBlogPost;
 use App\Filament\Resources\BlogPosts\Pages\EditBlogPost;
 use App\Filament\Resources\BlogPosts\Pages\ListBlogPosts;
-use App\Filament\Resources\BlogPosts\Pages\ViewBlogPost;
 use App\Filament\Resources\BlogPosts\Schemas\BlogPostForm;
-use App\Filament\Resources\BlogPosts\Schemas\BlogPostInfolist;
 use App\Filament\Resources\BlogPosts\Tables\BlogPostsTable;
 use App\Models\BlogPost;
 use BackedEnum;
@@ -20,40 +18,35 @@ class BlogPostResource extends Resource
 {
     protected static ?string $model = BlogPost::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencil;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $recordTitleAttribute = 'BlogPost';
+    protected static ?string $recordTitleAttribute = 'title';
 
     protected static ?int $navigationSort = 1;
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Blog';
+        return 'Bloq İdarəetməsi';
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'Posts';
+        return 'Məqalələr';
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Posts';
+        return 'Məqalələr';
     }
 
     public static function getModelLabel(): string
     {
-        return 'Post';
+        return 'Məqalə';
     }
 
     public static function form(Schema $schema): Schema
     {
         return BlogPostForm::configure($schema);
-    }
-
-    public static function infolist(Schema $schema): Schema
-    {
-        return BlogPostInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -73,7 +66,6 @@ class BlogPostResource extends Resource
         return [
             'index' => ListBlogPosts::route('/'),
             'create' => CreateBlogPost::route('/create'),
-            'view' => ViewBlogPost::route('/{record}'),
             'edit' => EditBlogPost::route('/{record}/edit'),
         ];
     }

@@ -13,16 +13,28 @@ return new class extends Migration
     {
         Schema::create('blog_posts', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->string('slug')->unique();
-            $table->longText('content')->nullable();
-            $table->text('image')->nullable();
-            $table->string('meta_title')->nullable();
-            $table->string('meta_description')->nullable();
-            $table->foreignId('blog_category_id')->constrained('blog_categories')->onDelete('cascade');
-            $table->boolean('is_published')->default(true);
-            $table->foreignId('user_id')->nullable()->constrained('admin_users')->nullOnDelete();
-            $table->softDeletes();
+            $table->foreignId('category_id')->nullable()->constrained('blog_categories')->nullOnDelete();
+            
+            // Multilingual (JSON) Fields
+            $table->json('slug'); // {"az": "muasir-veb-standartlari", "en": "modern-web-standards", "ru": "standarty-veb-sayta"}
+            $table->json('title'); // 3 dildə başlıq
+            $table->json('excerpt'); // Qısa təsvir
+            $table->json('author')->nullable(); // Default: CODEMARK
+            
+            // Dinamik Məzmun Blokları (Sections: heading, paragraphs, bullets)
+            $table->json('sections')->nullable(); // Filament Repeater / Builder strukturu
+            
+            // Qeyri-dil sahələri
+            $table->string('image')->nullable(); // Əsas poster şəkli (WebP / Curator ID)
+            $table->unsignedInteger('order_column')->default(0)->index(); // Yuxarı/aşağı sürüşdürmə sıralaması
+            $table->date('published_at')->nullable()->index();
+            $table->boolean('is_published')->default(true)->index();
+            $table->unsignedInteger('views_count')->default(0);
+
+            // SEO Meta sahələri
+            $table->json('meta_title')->nullable();
+            $table->json('meta_description')->nullable();
+
             $table->timestamps();
         });
     }

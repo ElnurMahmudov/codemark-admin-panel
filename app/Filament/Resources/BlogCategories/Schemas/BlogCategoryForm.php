@@ -3,14 +3,14 @@
 namespace App\Filament\Resources\BlogCategories\Schemas;
 
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Schemas\Schema;
-use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 use Filament\Schemas\Components\Utilities\Set;
-use App\Models\BlogCategory;
 
 class BlogCategoryForm
 {
@@ -18,49 +18,53 @@ class BlogCategoryForm
     {
         return $schema
             ->components([
-                Section::make('Category Details')
-                    ->description('Manage the basic information of the blog category.')
+                Section::make('Kateqoriya Məlumatları')
                     ->schema([
-                        // Name və Slug-ı yan-yana qoymaq üçün Grid istifadə edirik
+                        Tabs::make('Dillər')->tabs([
+                            Tab::make('Azərbaycan (AZ)')->schema([
+                                TextInput::make('name.az')
+                                    ->label('Ad (AZ)')
+                                    ->required()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.az', Str::slug($state))),
+
+                                TextInput::make('slug.az')
+                                    ->label('Slug (AZ)')
+                                    ->required(),
+                            ])->columns(2),
+
+                            Tab::make('English (EN)')->schema([
+                                TextInput::make('name.en')
+                                    ->label('Name (EN)')
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.en', Str::slug($state))),
+
+                                TextInput::make('slug.en')
+                                    ->label('Slug (EN)'),
+                            ])->columns(2),
+
+                            Tab::make('Русский (RU)')->schema([
+                                TextInput::make('name.ru')
+                                    ->label('Название (RU)')
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.ru', Str::slug($state))),
+
+                                TextInput::make('slug.ru')
+                                    ->label('Slug (RU)'),
+                            ])->columns(2),
+                        ])->columnSpanFull(),
+
                         Grid::make(2)->schema([
-                            TextInput::make('name')
-                            ->label('Name')
-                            ->required()
-                            ->maxLength(255)
-                            // Name üçün dehydrated() vacib deyil, çünki onsuz da gedir
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, ?string $state) {
-                                // Name dəyişəndə slug-ı formalaşdırırıq
-                                $set('slug', \Illuminate\Support\Str::slug($state));
-                            }),
+                            TextInput::make('order_column')
+                                ->label('Sıralama')
+                                ->numeric()
+                                ->default(0),
 
-                        TextInput::make('slug')
-                            ->label('Slug')
-                            ->required()
-                            ->maxLength(255)
-                            ->unique(BlogCategory::class, 'slug', ignoreRecord: true)
-                            ->dehydrated() 
-                            ->required(),
+                            Toggle::make('is_active')
+                                ->label('Aktivdir')
+                                ->default(true),
                         ]),
-
-                        Select::make('parent_id')
-                            ->label('Parent Category')
-                            ->options(function (?BlogCategory $record) {
-                                return BlogCategory::query()
-                                    ->when($record, fn($query) => $query->where('id', '!=', $record->id))
-                                    ->get()
-                                    ->pluck('name', 'id');
-                            })
-                            ->searchable()
-                            ->preload()
-                            ->placeholder('Select a parent category (Optional)'),
-
-                        Textarea::make('description')
-                            ->label('Description')
-                            ->rows(3),
-
-                    ])->columnSpanFull()
-                
+                    ]),
             ]);
     }
 }

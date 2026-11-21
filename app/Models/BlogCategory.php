@@ -3,33 +3,44 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Translatable\HasTranslations;
+use Spatie\EloquentSortable\Sortable;
+use Spatie\EloquentSortable\SortableTrait;
 
-class BlogCategory extends Model
+class BlogCategory extends Model implements Sortable
 {
+    use HasTranslations, SortableTrait;
+
+    public array $translatable = [
+        'name',
+        'slug',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
-        'description',
-        'parent_id',
+        'order_column',
+        'is_active',
     ];
 
-    public function parent()
+    protected $casts = [
+        'is_active' => 'boolean',
+        'order_column' => 'integer',
+    ];
+
+    public array $sortable = [
+        'order_column_name' => 'order_column',
+        'sort_when_creating' => true,
+    ];
+
+    public function posts(): HasMany
     {
-        return $this->belongsTo(BlogCategory::class, 'parent_id');
+        return $this->hasMany(BlogPost::class, 'category_id');
     }
 
-    public function children()
+    public function scopeActive($query)
     {
-        return $this->hasMany(BlogCategory::class, 'parent_id');
-    }
-
-    protected static function booted()
-    {
-        static::deleting(function ($category) {
-            if ($category->children()->exists()) {
-                // Əgər alt kateqoriya varsa, silinməni dayandır və xəta qaytar
-                throw new \Exception("This category has children. Please delete children first or move them to another category.");
-            }
-        });
+        return $query->where('is_active', true)->orderBy('order_column');
     }
 }

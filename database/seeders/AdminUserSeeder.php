@@ -61,10 +61,18 @@ class AdminUserSeeder extends Seeder
         ])->get();
         $manager->permissions()->sync($managerPermissions->pluck('id'));
 
-        // 5. Admin istifadəçisini yarat
-        // updateOrCreate istifadə etmək daha yaxşıdır ki, hər seed edəndə təkrar yaranmasın
+        // 5. Admin istifadəçilərini yarat
         AdminUser::updateOrCreate(
-            ['email' => 'admin@example.com'], // Bu mail-li istifadəçi varmı?
+            ['email' => 'admin@codemark.az'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('admin123'),
+                'role_id' => $superAdmin->id,
+            ]
+        );
+
+        AdminUser::updateOrCreate(
+            ['email' => 'admin@example.com'],
             [
                 'name' => 'Elnur',
                 'password' => Hash::make('admin123'),

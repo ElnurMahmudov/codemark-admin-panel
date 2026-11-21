@@ -5,9 +5,7 @@ namespace App\Filament\Resources\BlogCategories;
 use App\Filament\Resources\BlogCategories\Pages\CreateBlogCategory;
 use App\Filament\Resources\BlogCategories\Pages\EditBlogCategory;
 use App\Filament\Resources\BlogCategories\Pages\ListBlogCategories;
-use App\Filament\Resources\BlogCategories\Pages\ViewBlogCategory;
 use App\Filament\Resources\BlogCategories\Schemas\BlogCategoryForm;
-use App\Filament\Resources\BlogCategories\Schemas\BlogCategoryInfolist;
 use App\Filament\Resources\BlogCategories\Tables\BlogCategoriesTable;
 use App\Models\BlogCategory;
 use BackedEnum;
@@ -22,28 +20,33 @@ class BlogCategoryResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
-    protected static ?string $recordTitleAttribute = 'BlogCategory';
-    
+    protected static ?string $recordTitleAttribute = 'name';
+
     protected static ?int $navigationSort = 2;
-    
+
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Blog';
+        return 'Bloq İdarəetməsi';
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'Categories';
+        return 'Kateqoriyalar';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Bloq Kateqoriyaları';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'Bloq Kateqoriyası';
     }
 
     public static function form(Schema $schema): Schema
     {
         return BlogCategoryForm::configure($schema);
-    }
-
-    public static function infolist(Schema $schema): Schema
-    {
-        return BlogCategoryInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -63,7 +66,6 @@ class BlogCategoryResource extends Resource
         return [
             'index' => ListBlogCategories::route('/'),
             'create' => CreateBlogCategory::route('/create'),
-            'view' => ViewBlogCategory::route('/{record}'),
             'edit' => EditBlogCategory::route('/{record}/edit'),
         ];
     }

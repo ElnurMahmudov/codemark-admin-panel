@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'nextjs' => [
+        'url' => env('NEXTJS_URL', 'https://codemark.az'),
+        'revalidation_secret' => env('NEXTJS_REVALIDATION_SECRET', ''),
+    ],
+
 ];
