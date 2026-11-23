@@ -5,6 +5,7 @@ namespace App\Models;
 use Awcodes\Curator\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\Storage;
 use Spatie\EloquentSortable\Sortable;
@@ -61,6 +62,11 @@ class BlogPost extends Model implements Sortable
     public function tags(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    public function visits(): MorphMany
+    {
+        return $this->morphMany(SiteVisit::class, 'visitable');
     }
 
     public function imageMedia(): BelongsTo

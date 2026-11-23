@@ -38,6 +38,11 @@ class BlogPostsTable
                     ->badge()
                     ->color('info'),
                 TextColumn::make('published_at')->label('Tarix')->date('d.m.Y')->sortable(),
+                TextColumn::make('views_count')
+                    ->label('Oxunma')
+                    ->sortable()
+                    ->badge()
+                    ->color('info'),
                 IconColumn::make('is_published')->label('Dərc')->boolean(),
             ])
             ->filters([

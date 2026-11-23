@@ -14,14 +14,14 @@ class GeminiTranslationService
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key') ?: env('GEMINI_API_KEY');
-        $primaryModel = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-3.5-flash-lite');
+        $primaryModel = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-3.8-flash');
 
         $this->models = array_unique([
             $primaryModel,
+            'gemini-3.8-flash',
             'gemini-3.5-flash-lite',
             'gemini-3.5-flash',
             'gemini-3.1-flash-lite',
-            'gemini-flash-latest',
         ]);
     }
 
@@ -67,48 +67,36 @@ PROMPT;
         foreach ($this->models as $model) {
             $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$this->apiKey}";
 
-            for ($attempt = 1; $attempt <= 2; $attempt++) {
-                try {
-                    $response = Http::timeout(35)
-                        ->post($endpoint, [
-                            'contents' => [
-                                [
-                                    'parts' => [
-                                        ['text' => $systemPrompt . "\n\n" . $userPrompt],
-                                    ],
+            try {
+                $response = Http::timeout(20)
+                    ->post($endpoint, [
+                        'contents' => [
+                            [
+                                'parts' => [
+                                    ['text' => $systemPrompt . "\n\n" . $userPrompt],
                                 ],
                             ],
-                            'generationConfig' => [
-                                'response_mime_type' => 'application/json',
-                            ],
-                        ]);
+                        ],
+                        'generationConfig' => [
+                            'response_mime_type' => 'application/json',
+                        ],
+                    ]);
 
-                    if ($response->successful()) {
-                        $rawText = $response->json('candidates.0.content.parts.0.text');
-                        if (filled($rawText)) {
-                            $decoded = json_decode($rawText, true);
-                            if (is_array($decoded)) {
-                                return $decoded;
-                            }
+                if ($response->successful()) {
+                    $rawText = $response->json('candidates.0.content.parts.0.text');
+                    if (filled($rawText)) {
+                        $decoded = json_decode($rawText, true);
+                        if (is_array($decoded)) {
+                            return $decoded;
                         }
                     }
-
-                    $statusCode = $response->status();
-                    $errorMsg = $response->json('error.message') ?? $response->body();
-                    $lastError = "Model {$model} (Status {$statusCode}): {$errorMsg}";
-
-                    // If temporary spike, sleep 1.5s before retry
-                    if ($statusCode === 503 || $statusCode === 429) {
-                        usleep(1500000); // 1.5s
-                        continue;
-                    }
-
-                    // Otherwise try next model
-                    break;
-                } catch (Exception $e) {
-                    $lastError = "Model {$model} exception: " . $e->getMessage();
-                    usleep(1000000);
                 }
+
+                $statusCode = $response->status();
+                $errorMsg = $response->json('error.message') ?? $response->body();
+                $lastError = "Model {$model} (Status {$statusCode}): {$errorMsg}";
+            } catch (Exception $e) {
+                $lastError = "Model {$model} exception: " . $e->getMessage();
             }
         }
 

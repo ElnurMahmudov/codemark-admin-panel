@@ -41,6 +41,11 @@ class ProjectsTable
                     ->color('info'),
                 ColorColumn::make('bg_light')->label('Light Fon'),
                 ColorColumn::make('bg_dark')->label('Dark Fon'),
+                TextColumn::make('views_count')
+                    ->label('Baxış')
+                    ->sortable()
+                    ->badge()
+                    ->color('info'),
                 IconColumn::make('is_featured')->label('Önə Çıxan')->boolean(),
                 IconColumn::make('is_published')->label('Status')->boolean(),
             ])

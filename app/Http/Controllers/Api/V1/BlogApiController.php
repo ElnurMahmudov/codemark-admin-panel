@@ -40,6 +40,7 @@ class BlogApiController extends Controller
                 'tags' => $post->tags->map(fn ($tag) => $tag->getTranslation('name', $locale) ?: (is_array($tag->name) ? ($tag->name[$locale] ?? reset($tag->name)) : $tag->name))->values()->all(),
                 'publishedAt' => $post->published_at ? $post->published_at->format('d M Y') : null,
                 'author' => $post->getTranslation('author', $locale) ?: ($post->author ?: 'CODEMARK'),
+                'viewsCount' => $post->views_count,
             ];
         });
 
@@ -70,6 +71,7 @@ class BlogApiController extends Controller
             ->firstOrFail();
 
         $post->increment('views_count');
+        \App\Models\SiteVisit::recordVisit($request, $post);
 
         return response()->json([
             'success' => true,
@@ -84,6 +86,7 @@ class BlogApiController extends Controller
                 'tags' => $post->tags->map(fn ($tag) => $tag->getTranslation('name', $locale) ?: (is_array($tag->name) ? ($tag->name[$locale] ?? reset($tag->name)) : $tag->name))->values()->all(),
                 'publishedAt' => $post->published_at ? $post->published_at->format('d M Y') : null,
                 'author' => $post->getTranslation('author', $locale) ?: ($post->author ?: 'CODEMARK'),
+                'viewsCount' => $post->views_count,
                 'seo' => [
                     'metaTitle' => $post->getTranslation('meta_title', $locale) ?: $post->meta_title,
                     'metaDescription' => $post->getTranslation('meta_description', $locale) ?: $post->meta_description,

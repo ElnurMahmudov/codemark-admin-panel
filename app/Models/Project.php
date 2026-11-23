@@ -5,6 +5,7 @@ namespace App\Models;
 use Awcodes\Curator\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -50,6 +51,7 @@ class Project extends Model implements Sortable
         'order_column',
         'is_featured',
         'is_published',
+        'views_count',
         'meta_title',
         'meta_description',
     ];
@@ -63,6 +65,7 @@ class Project extends Model implements Sortable
         'is_featured' => 'boolean',
         'is_published' => 'boolean',
         'order_column' => 'integer',
+        'views_count' => 'integer',
     ];
 
     public array $sortable = [
@@ -94,6 +97,11 @@ class Project extends Model implements Sortable
     public function tags(): MorphToMany
     {
         return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    public function visits(): MorphMany
+    {
+        return $this->morphMany(SiteVisit::class, 'visitable');
     }
 
     public function imageMedia(): BelongsTo

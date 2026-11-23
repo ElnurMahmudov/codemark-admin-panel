@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AnalyticsApiController;
 use App\Http\Controllers\Api\V1\BlogApiController;
 use App\Http\Controllers\Api\V1\CustomerLogoApiController;
 use App\Http\Controllers\Api\V1\ProjectApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    // Analitika
+    Route::post('/analytics/track', [AnalyticsApiController::class, 'track']);
+
     // Müştəri loqoları
     Route::get('/customer-logos', [CustomerLogoApiController::class, 'index']);
 

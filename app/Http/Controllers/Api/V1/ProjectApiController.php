@@ -49,6 +49,7 @@ class ProjectApiController extends Controller
                 'overview' => $project->getTranslation('overview', $locale) ?: ($project->overview ?? []),
                 'features' => $project->getTranslation('features', $locale) ?: ($project->features ?? []),
                 'results' => $project->getTranslation('results', $locale) ?: ($project->results ?? []),
+                'viewsCount' => $project->views_count,
                 'websiteUrl' => $project->website_url,
                 'gallery' => $project->gallery_urls,
             ];
@@ -69,6 +70,9 @@ class ProjectApiController extends Controller
             ->where('project_code', $code)
             ->firstOrFail();
 
+        $project->increment('views_count');
+        \App\Models\SiteVisit::recordVisit($request, $project);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -88,6 +92,7 @@ class ProjectApiController extends Controller
                 'overview' => $project->getTranslation('overview', $locale) ?: ($project->overview ?? []),
                 'features' => $project->getTranslation('features', $locale) ?: ($project->features ?? []),
                 'results' => $project->getTranslation('results', $locale) ?: ($project->results ?? []),
+                'viewsCount' => $project->views_count,
                 'websiteUrl' => $project->website_url,
                 'gallery' => $project->gallery_urls,
                 'seo' => [
