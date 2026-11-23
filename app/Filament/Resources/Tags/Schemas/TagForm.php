@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tags\Schemas;
 
+use App\Filament\Actions\TranslateWithAiAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -18,6 +19,9 @@ class TagForm
         return $schema
             ->components([
                 Section::make('Teq Məlumatları')
+                    ->headerActions([
+                        TranslateWithAiAction::forTag(),
+                    ])
                     ->schema([
                         Tabs::make('Dillər')->tabs([
                             Tab::make('Azərbaycan (AZ)')->schema([

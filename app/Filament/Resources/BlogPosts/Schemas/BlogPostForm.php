@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BlogPosts\Schemas;
 
+use App\Filament\Actions\TranslateWithAiAction;
 use Awcodes\Curator\Components\Forms\CuratorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\RichEditor;
@@ -27,6 +28,9 @@ class BlogPostForm
                 Group::make()
                     ->schema([
                         Section::make('Başlıq və Məlumatlar')
+                            ->headerActions([
+                                TranslateWithAiAction::forBlogPost(),
+                            ])
                             ->schema([
                                 Tabs::make('Başlıq Dilləri')->tabs([
                                     Tab::make('Azərbaycan (AZ)')->schema([

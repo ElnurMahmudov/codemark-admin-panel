@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BlogCategories\Schemas;
 
+use App\Filament\Actions\TranslateWithAiAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
@@ -19,6 +20,9 @@ class BlogCategoryForm
         return $schema
             ->components([
                 Section::make('Kateqoriya Məlumatları')
+                    ->headerActions([
+                        TranslateWithAiAction::forBlogCategory(),
+                    ])
                     ->schema([
                         Tabs::make('Dillər')->tabs([
                             Tab::make('Azərbaycan (AZ)')->schema([

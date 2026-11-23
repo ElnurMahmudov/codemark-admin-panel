@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProjectCategories\Schemas;
 
+use App\Filament\Actions\TranslateWithAiAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
@@ -19,6 +20,9 @@ class ProjectCategoryForm
         return $schema
             ->components([
                 Section::make('Kateqoriya Məlumatları')
+                    ->headerActions([
+                        TranslateWithAiAction::forProjectCategory(),
+                    ])
                     ->schema([
                         Tabs::make('Dillər')->tabs([
                             Tab::make('Azərbaycan (AZ)')->schema([

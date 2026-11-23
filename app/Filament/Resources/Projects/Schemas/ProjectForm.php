@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Projects\Schemas;
 
+use App\Filament\Actions\TranslateWithAiAction;
 use Awcodes\Curator\Components\Forms\CuratorPicker;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Repeater;
@@ -28,6 +29,9 @@ class ProjectForm
                     ->schema([
                         // Məzmun və Təsvir
                         Section::make('Məzmun və Təsvir')
+                            ->headerActions([
+                                TranslateWithAiAction::forProject(),
+                            ])
                             ->schema([
                                 Tabs::make('Məzmun Dilləri')->tabs([
                                     // 1. Azərbaycan (AZ)
