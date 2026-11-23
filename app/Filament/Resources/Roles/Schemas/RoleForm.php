@@ -16,18 +16,21 @@ class RoleForm
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('Sistem Adı (Slug)')
                     ->required(),
                 TextInput::make('display_name')
+                    ->label('Rolun Adı')
                     ->required(),
                 Textarea::make('description')
+                    ->label('Təsvir')
                     ->columnSpanFull(),
 
-                Section::make('Permissions')
+                Section::make('İcazələr')
                     ->icon('heroicon-o-shield-check')
-                    ->description('Assign permissions to this role')
+                    ->description('Bu rola təyin olunan icazələr')
                     ->schema([
                         CheckboxList::make('permissions') // 'permissions' Model-dəki belongsToMany əlaqəsidir
-                            ->label('Permissions List')
+                            ->label('İcazələrin Siyahısı')
                             ->relationship(
                                 name: 'permissions', 
                                 titleAttribute: 'display_name'

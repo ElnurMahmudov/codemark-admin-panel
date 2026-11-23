@@ -16,23 +16,23 @@ class BlogPost extends Model implements Sortable
     use HasTranslations, SortableTrait;
 
     public array $translatable = [
-        'slug',
         'title',
+        'slug',
         'excerpt',
         'author',
-        'sections',
+        'content',
         'meta_title',
         'meta_description',
     ];
 
     protected $fillable = [
         'category_id',
-        'slug',
         'title',
+        'slug',
         'excerpt',
-        'image',
         'author',
-        'sections',
+        'content',
+        'image',
         'order_column',
         'published_at',
         'is_published',
@@ -44,7 +44,6 @@ class BlogPost extends Model implements Sortable
     protected $casts = [
         'published_at' => 'date',
         'is_published' => 'boolean',
-        'sections' => 'array',
         'views_count' => 'integer',
         'order_column' => 'integer',
     ];

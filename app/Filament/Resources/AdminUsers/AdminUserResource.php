@@ -20,7 +20,7 @@ class AdminUserResource extends Resource
 {
     protected static ?string $model = AdminUser::class;
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
     {
@@ -43,11 +43,26 @@ class AdminUserResource extends Resource
         return 'heroicon-o-users';
     }
 
-    protected static ?string $recordTitleAttribute = 'AdminUser';
+    protected static ?string $recordTitleAttribute = 'name';
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Users';
+        return 'İstifadəçilər';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'İnzibatçılar';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'İnzibatçılar';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'İnzibatçı';
     }
 
     public static function form(Schema $schema): Schema

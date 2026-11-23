@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 use Spatie\Translatable\HasTranslations;
@@ -68,6 +69,22 @@ class Project extends Model implements Sortable
         'order_column_name' => 'order_column',
         'sort_when_creating' => true,
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Project $project) {
+            if (empty($project->project_code)) {
+                $source = $project->getTranslation('title', 'az') ?: $project->client ?: ('project-' . uniqid());
+                $slug = Str::slug($source);
+                $originalSlug = $slug;
+                $count = 1;
+                while (static::where('project_code', $slug)->where('id', '!=', $project->id ?? 0)->exists()) {
+                    $slug = $originalSlug . '-' . $count++;
+                }
+                $project->project_code = $slug;
+            }
+        });
+    }
 
     public function category(): BelongsTo
     {

@@ -18,8 +18,15 @@ class TagsTable
             ->defaultSort('order_column')
             ->columns([
                 TextColumn::make('order_column')->label('#')->sortable(),
-                TextColumn::make('name')->label('Teq Adı')->searchable()->sortable(),
-                TextColumn::make('slug')->label('Slug')->searchable(),
+                TextColumn::make('name')
+                    ->label('Teq Adı')
+                    ->formatStateUsing(fn ($record) => $record?->getTranslation('name', 'az') ?? (is_array($record?->name) ? ($record->name['az'] ?? reset($record->name)) : $record?->name))
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('slug')
+                    ->label('Slug')
+                    ->formatStateUsing(fn ($record) => $record?->getTranslation('slug', 'az') ?? (is_array($record?->slug) ? ($record->slug['az'] ?? reset($record->slug)) : $record?->slug))
+                    ->searchable(),
                 TextColumn::make('posts_count')->counts('posts')->label('Məqalələr')->badge()->color('info'),
                 TextColumn::make('projects_count')->counts('projects')->label('Layihələr')->badge()->color('success'),
                 TextColumn::make('created_at')->label('Yaradılma')->dateTime('d.m.Y H:i')->toggleable(isToggledHiddenByDefault: true),

@@ -30,17 +30,15 @@ class CustomerLogoForm
                         ->default(true),
                 ])->columns(3),
 
-                Section::make('Loqo Təsvirləri (Curator)')->schema([
+                Section::make('Loqo Şəkilləri')->schema([
                     CuratorPicker::make('dark_logo')
-                        ->label('Tünd Loqo (Light Tema üçün)')
+                        ->label('Tünd Loqo')
                         ->buttonLabel('Loqo seç')
-                        ->helperText('Ağ və açıq fonda görünən tünd rəngli loqo')
                         ->required(),
 
                     CuratorPicker::make('light_logo')
-                        ->label('Ağ / Açıq Loqo (Dark Tema üçün)')
+                        ->label('Açıq Loqo')
                         ->buttonLabel('Loqo seç')
-                        ->helperText('Qaranlıq fonda görünən ağ rəngli loqo')
                         ->required(),
                 ])->columns(2),
             ]);

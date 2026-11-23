@@ -18,9 +18,9 @@ class MainSettingsPage extends Page
 {
     use HasSeoFields;
 
-    protected static ?string $navigationLabel = 'General Settings';
+    protected static ?string $navigationLabel = 'Əsas Tənzimləmələr';
     protected static ?string $slug = 'main-settings';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
     {
@@ -40,7 +40,7 @@ class MainSettingsPage extends Page
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Settings';
+        return 'Tənzimləmələr';
     }
 
     public static function getNavigationIcon(): string|\BackedEnum|null
@@ -50,7 +50,7 @@ class MainSettingsPage extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'General Settings';
+        return 'Əsas Tənzimləmələr';
     }
 
     public function getView(): string

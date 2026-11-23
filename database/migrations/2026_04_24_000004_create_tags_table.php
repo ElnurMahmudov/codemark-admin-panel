@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('tags', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('slug')->unique();
+            $table->json('name'); // 3 dildə məcburi ad: {"az": "...", "en": "...", "ru": "..."}
+            $table->json('slug'); // 3 dildə slug: {"az": "...", "en": "...", "ru": "..."}
             $table->unsignedInteger('order_column')->default(0)->index();
             $table->timestamps();
         });

@@ -4,11 +4,13 @@ namespace App\Filament\Resources\BlogPosts\Schemas;
 
 use Awcodes\Curator\Components\Forms\CuratorPicker;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Set;
@@ -21,171 +23,203 @@ class BlogPostForm
     {
         return $schema
             ->components([
-                Tabs::make('BlogTabs')->tabs([
-                    // 1. Azərbaycan (AZ)
-                    Tab::make('Azərbaycan (AZ)')->schema([
-                        TextInput::make('title.az')
-                            ->label('Başlıq (AZ)')
-                            ->required()
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, Set $set) {
-                                $set('slug.az', Str::slug($state));
-                            }),
-
-                        TextInput::make('slug.az')
-                            ->label('URL Slug (AZ)')
-                            ->required(),
-
-                        Textarea::make('excerpt.az')
-                            ->label('Qısa Giriş Mətni (Excerpt - AZ)')
-                            ->rows(3)
-                            ->columnSpanFull(),
-
-                        TextInput::make('author.az')
-                            ->label('Müəllif (AZ)')
-                            ->default('CODEMARK'),
-
-                        TextInput::make('meta_title.az')
-                            ->label('SEO Meta Başlıq (AZ)'),
-
-                        Textarea::make('meta_description.az')
-                            ->label('SEO Meta Təsvir (AZ)')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ])->columns(2),
-
-                    // 2. English (EN)
-                    Tab::make('English (EN)')->schema([
-                        TextInput::make('title.en')
-                            ->label('Title (EN)')
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, Set $set) {
-                                $set('slug.en', Str::slug($state));
-                            }),
-
-                        TextInput::make('slug.en')
-                            ->label('URL Slug (EN)'),
-
-                        Textarea::make('excerpt.en')
-                            ->label('Excerpt (EN)')
-                            ->rows(3)
-                            ->columnSpanFull(),
-
-                        TextInput::make('author.en')
-                            ->label('Author (EN)')
-                            ->default('CODEMARK'),
-
-                        TextInput::make('meta_title.en')
-                            ->label('SEO Meta Title (EN)'),
-
-                        Textarea::make('meta_description.en')
-                            ->label('SEO Meta Description (EN)')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ])->columns(2),
-
-                    // 3. Русский (RU)
-                    Tab::make('Русский (RU)')->schema([
-                        TextInput::make('title.ru')
-                            ->label('Заголовок (RU)')
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, Set $set) {
-                                $set('slug.ru', Str::slug($state));
-                            }),
-
-                        TextInput::make('slug.ru')
-                            ->label('URL Slug (RU)'),
-
-                        Textarea::make('excerpt.ru')
-                            ->label('Краткое описание (RU)')
-                            ->rows(3)
-                            ->columnSpanFull(),
-
-                        TextInput::make('author.ru')
-                            ->label('Автор (RU)')
-                            ->default('CODEMARK'),
-
-                        TextInput::make('meta_title.ru')
-                            ->label('SEO Мета Заголовок (RU)'),
-
-                        Textarea::make('meta_description.ru')
-                            ->label('SEO Мета Описание (RU)')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ])->columns(2),
-
-                    // 4. Məqalənin Məzmunu (Sections)
-                    Tab::make('Məqalənin Məzmunu (Sections)')->schema([
-                        Repeater::make('sections')
-                            ->label('Məzmun Bölmələri (Sections)')
+                // Sol tərəf: Başlıq, Əsas Məzmun və SEO (2/3 en)
+                Group::make()
+                    ->schema([
+                        Section::make('Başlıq və Məlumatlar')
                             ->schema([
-                                TextInput::make('heading')
-                                    ->label('Bölmə Başlığı (H2/H3)')
+                                Tabs::make('Başlıq Dilləri')->tabs([
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        TextInput::make('title.az')
+                                            ->label('Başlıq')
+                                            ->required()
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('slug.az', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('slug.az')
+                                            ->label('Link')
+                                            ->required()
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('excerpt.az')
+                                            ->label('Qısa Mətn')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('author.az')
+                                            ->label('Müəllif')
+                                            ->default('CODEMARK')
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('English (EN)')->schema([
+                                        TextInput::make('title.en')
+                                            ->label('Title')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('slug.en', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('slug.en')
+                                            ->label('Link')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('excerpt.en')
+                                            ->label('Short Excerpt')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('author.en')
+                                            ->label('Author')
+                                            ->default('CODEMARK')
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('Русский (RU)')->schema([
+                                        TextInput::make('title.ru')
+                                            ->label('Заголовок')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('slug.ru', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('slug.ru')
+                                            ->label('Ссылка')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('excerpt.ru')
+                                            ->label('Краткий текст')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('author.ru')
+                                            ->label('Автор')
+                                            ->default('CODEMARK')
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
+
+                        Section::make('Əsas Məzmun')
+                            ->schema([
+                                Tabs::make('Məzmun Dilləri')->tabs([
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        RichEditor::make('content.az')
+                                            ->label('Əsas Məzmun')
+                                            ->required()
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('English (EN)')->schema([
+                                        RichEditor::make('content.en')
+                                            ->label('Content')
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('Русский (RU)')->schema([
+                                        RichEditor::make('content.ru')
+                                            ->label('Основной контент')
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
+
+                        Section::make('SEO Parametrləri')
+                            ->schema([
+                                Tabs::make('SEO Dilləri')->tabs([
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        TextInput::make('meta_title.az')
+                                            ->label('Meta Başlıq')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('meta_description.az')
+                                            ->label('Meta Təsvir')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('English (EN)')->schema([
+                                        TextInput::make('meta_title.en')
+                                            ->label('Meta Title')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('meta_description.en')
+                                            ->label('Meta Description')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('Русский (RU)')->schema([
+                                        TextInput::make('meta_title.ru')
+                                            ->label('Мета Заголовок')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('meta_description.ru')
+                                            ->label('Мета Описание')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
+                    ])
+                    ->columnSpan(['lg' => 2]),
+
+                // Sağ tərəf: Media və Parametrlər (1/3 en)
+                Group::make()
+                    ->schema([
+                        Section::make('Media və Əsas Parametrlər')
+                            ->schema([
+                                CuratorPicker::make('image')
+                                    ->label('Qapaq Şəkli')
+                                    ->buttonLabel('Şəkil seç')
                                     ->required(),
 
-                                Repeater::make('paragraphs')
-                                    ->label('Paraqraflar')
-                                    ->simple(Textarea::make('text')->rows(3)->required())
-                                    ->reorderable()
-                                    ->collapsible(),
+                                Select::make('category_id')
+                                    ->label('Kateqoriya')
+                                    ->relationship('category', 'name')
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? (is_array($record->name) ? ($record->name['az'] ?? reset($record->name)) : $record->name))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
 
-                                Repeater::make('bullets')
-                                    ->label('Siyahı Bəndləri')
-                                    ->simple(TextInput::make('bullet')->required())
-                                    ->reorderable()
-                                    ->collapsible(),
-                            ])
-                            ->collapsible()
-                            ->reorderable()
-                            ->itemLabel(fn (array $state): ?string => $state['heading'] ?? 'Yeni Bölmə')
-                            ->columnSpanFull(),
-                    ]),
+                                Select::make('tags')
+                                    ->label('Teqlər')
+                                    ->relationship('tags', 'name')
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? (is_array($record->name) ? ($record->name['az'] ?? reset($record->name)) : $record->name))
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        TextInput::make('name_az')->label('Teq Adı')->required(),
+                                        TextInput::make('name_en')->label('Tag Name')->required(),
+                                        TextInput::make('name_ru')->label('Название тега')->required(),
+                                    ])
+                                    ->createOptionUsing(function (array $data) {
+                                        return \App\Models\Tag::create([
+                                            'name' => [
+                                                'az' => $data['name_az'],
+                                                'en' => $data['name_en'],
+                                                'ru' => $data['name_ru'],
+                                            ],
+                                            'slug' => [
+                                                'az' => Str::slug($data['name_az']),
+                                                'en' => Str::slug($data['name_en']),
+                                                'ru' => Str::slug($data['name_ru']),
+                                            ],
+                                        ])->id;
+                                    }),
 
-                    // 5. Media & Parametrlər
-                    Tab::make('Media & Parametrlər')->schema([
-                        CuratorPicker::make('image')
-                            ->label('Qapaq Şəkli (Cover Image - Curator)')
-                            ->buttonLabel('Şəkil seç')
-                            ->required(),
+                                DatePicker::make('published_at')
+                                    ->label('Dərc Tarixi')
+                                    ->default(now())
+                                    ->required(),
 
-                        Select::make('category_id')
-                            ->label('Kateqoriya')
-                            ->relationship('category', 'name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? $record->name)
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-
-                        Select::make('tags')
-                            ->label('Teqlər (Bazadan seçin və ya yeni yaradın)')
-                            ->relationship('tags', 'name')
-                            ->multiple()
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
-                                TextInput::make('name')
-                                    ->label('Teq Adı')
-                                    ->required()
-                                    ->unique('tags', 'name'),
-                            ])
-                            ->createOptionUsing(function (array $data) {
-                                return \App\Models\Tag::create([
-                                    'name' => $data['name'],
-                                    'slug' => Str::slug($data['name']),
-                                ])->id;
-                            })
-                            ->columnSpanFull(),
-
-                        DatePicker::make('published_at')
-                            ->label('Dərc Tarixi')
-                            ->default(now())
-                            ->required(),
-
-                        Toggle::make('is_published')
-                            ->label('Dərc edilsin')
-                            ->default(true),
-                    ])->columns(2),
-                ])->columnSpanFull(),
-            ]);
+                                Toggle::make('is_published')
+                                    ->label('Dərc edilsin')
+                                    ->default(true),
+                            ]),
+                    ])
+                    ->columnSpan(['lg' => 1]),
+            ])
+            ->columns(3);
     }
 }

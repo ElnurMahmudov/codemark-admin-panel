@@ -16,9 +16,9 @@ use Filament\Schemas\Schema;
 
 class ContactInformationPage extends Page
 {
-    protected static ?string $navigationLabel = 'Contact Information';
+    protected static ?string $navigationLabel = 'Əlaqə Məlumatları';
     protected static ?string $slug = 'contact-information';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
@@ -38,7 +38,7 @@ class ContactInformationPage extends Page
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Settings';
+        return 'Tənzimləmələr';
     }
 
     public static function getNavigationIcon(): string|\BackedEnum|null
@@ -49,7 +49,7 @@ class ContactInformationPage extends Page
     // İşləyən struktur üçün əlavə edildi
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Contact Information';
+        return 'Əlaqə Məlumatları';
     }
 
     // İşləyən struktur üçün əlavə edildi

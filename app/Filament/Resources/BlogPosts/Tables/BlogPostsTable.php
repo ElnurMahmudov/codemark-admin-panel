@@ -32,11 +32,11 @@ class BlogPostsTable
                     ->label('Kateqoriya')
                     ->formatStateUsing(fn ($state, $record) => $record?->category?->getTranslation('name', 'az') ?? (is_array($state) ? ($state['az'] ?? reset($state)) : $state))
                     ->badge(),
-                TextColumn::make('tags.name')
+                TextColumn::make('tags')
                     ->label('Teqlər')
+                    ->formatStateUsing(fn ($record) => $record->tags->map(fn ($t) => $t->getTranslation('name', 'az') ?? (is_array($t->name) ? ($t->name['az'] ?? reset($t->name)) : $t->name))->implode(', '))
                     ->badge()
-                    ->color('info')
-                    ->separator(','),
+                    ->color('info'),
                 TextColumn::make('published_at')->label('Tarix')->date('d.m.Y')->sortable(),
                 IconColumn::make('is_published')->label('Dərc')->boolean(),
             ])

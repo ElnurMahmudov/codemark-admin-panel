@@ -12,9 +12,9 @@ use Filament\Schemas\Schema;
 
 class SocialMediaPage extends Page
 {
-    protected static ?string $navigationLabel = 'Social Media Links';
+    protected static ?string $navigationLabel = 'Sosial Şəbəkələr';
     protected static ?string $slug = 'social-media-links';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 3;
 
     public static function canAccess(): bool
     {
@@ -34,7 +34,7 @@ class SocialMediaPage extends Page
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Settings';
+        return 'Tənzimləmələr';
     }
 
     public static function getNavigationIcon(): string|\BackedEnum|null
@@ -44,7 +44,7 @@ class SocialMediaPage extends Page
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
-        return 'Social Media Links';
+        return 'Sosial Şəbəkələr';
     }
 
     public function getView(): string

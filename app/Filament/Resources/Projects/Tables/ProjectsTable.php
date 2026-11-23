@@ -34,11 +34,11 @@ class ProjectsTable
                     ->label('Kateqoriya')
                     ->formatStateUsing(fn ($state, $record) => $record?->category?->getTranslation('name', 'az') ?? (is_array($state) ? ($state['az'] ?? reset($state)) : $state))
                     ->badge(),
-                TextColumn::make('tags.name')
+                TextColumn::make('tags')
                     ->label('Teqlər')
+                    ->formatStateUsing(fn ($record) => $record->tags->map(fn ($t) => $t->getTranslation('name', 'az') ?? (is_array($t->name) ? ($t->name['az'] ?? reset($t->name)) : $t->name))->implode(', '))
                     ->badge()
-                    ->color('info')
-                    ->separator(','),
+                    ->color('info'),
                 ColorColumn::make('bg_light')->label('Light Fon'),
                 ColorColumn::make('bg_dark')->label('Dark Fon'),
                 IconColumn::make('is_featured')->label('Önə Çıxan')->boolean(),

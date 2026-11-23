@@ -16,23 +16,26 @@ class AdminUserForm
     {
         return $schema
             ->components([
-                Section::make('Admin Details')
+                Section::make('İnzibatçı Məlumatları')
                     ->schema([
                         TextInput::make('name')
+                            ->label('Ad və Soyad')
                             ->required(),
 
                         TextInput::make('email')
+                            ->label('E-poçt')
                             ->email()
                             ->required()
                             ->unique(ignoreRecord: true),
 
                         Select::make('role_id')
-                            ->label('Role')
+                            ->label('Rol')
                             ->relationship('role', 'display_name')
                             ->preload()
                             ->required(),
 
                         TextInput::make('password')
+                            ->label('Şifrə')
                             ->password()
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context): bool => $context === 'create')
@@ -40,7 +43,7 @@ class AdminUserForm
 
                         TextInput::make('password_confirmation')
                             ->password()
-                            ->label('Confirm Password')
+                            ->label('Şifrənin Təkrarı')
                             ->required(fn (string $context): bool => $context === 'create')
                             ->visible(fn (callable $get, string $context): bool => 
                                 $context === 'create' || filled($get('password'))

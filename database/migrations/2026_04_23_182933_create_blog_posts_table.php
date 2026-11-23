@@ -16,16 +16,14 @@ return new class extends Migration
             $table->foreignId('category_id')->nullable()->constrained('blog_categories')->nullOnDelete();
             
             // Multilingual (JSON) Fields
-            $table->json('slug'); // {"az": "muasir-veb-standartlari", "en": "modern-web-standards", "ru": "standarty-veb-sayta"}
-            $table->json('title'); // 3 dildə başlıq
-            $table->json('excerpt'); // Qısa təsvir
-            $table->json('author')->nullable(); // Default: CODEMARK
-            
-            // Dinamik Məzmun Blokları (Sections: heading, paragraphs, bullets)
-            $table->json('sections')->nullable(); // Filament Repeater / Builder strukturu
+            $table->json('title'); // 3 dildə başlıq (az, en, ru)
+            $table->json('slug'); // 3 dildə link (az, en, ru)
+            $table->json('excerpt')->nullable(); // 3 dildə qısa mətn
+            $table->json('author')->nullable(); // 3 dildə müəllif (Default: CODEMARK)
+            $table->json('content')->nullable(); // 3 dildə əsas məzmun (Texteditor / RichEditor)
             
             // Qeyri-dil sahələri
-            $table->string('image')->nullable(); // Əsas poster şəkli (WebP / Curator ID)
+            $table->string('image')->nullable(); // Əsas poster şəkli (Curator ID)
             $table->unsignedInteger('order_column')->default(0)->index(); // Yuxarı/aşağı sürüşdürmə sıralaması
             $table->date('published_at')->nullable()->index();
             $table->boolean('is_published')->default(true)->index();

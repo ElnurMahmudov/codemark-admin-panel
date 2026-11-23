@@ -9,8 +9,11 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -20,237 +23,347 @@ class ProjectForm
     {
         return $schema
             ->components([
-                Tabs::make('ProjectTabs')->tabs([
-                    // TAB 1: Ümumi & Kart Məlumatları
-                    Tab::make('Əsas Məlumatlar')->schema([
-                        TextInput::make('project_code')
-                            ->label('Layihə Kodu (Unikal ID: express-avto)')
-                            ->required()
-                            ->unique(ignoreRecord: true),
-
-                        TextInput::make('client')
-                            ->label('Müştəri / Brend')
-                            ->required(),
-
-                        Select::make('category_id')
-                            ->label('Kateqoriya')
-                            ->relationship('category', 'name')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? $record->name)
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-
-                        TextInput::make('year')
-                            ->label('İl')
-                            ->default('2026')
-                            ->maxLength(4),
-
-                        TextInput::make('website_url')
-                            ->label('Layihənin Canlı Linki')
-                            ->url(),
-
-                        Select::make('tags')
-                            ->label('Teqlər (Bazadan seçin və ya yeni yaradın)')
-                            ->relationship('tags', 'name')
-                            ->multiple()
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
-                                TextInput::make('name')
-                                    ->label('Teq Adı')
-                                    ->required()
-                                    ->unique('tags', 'name'),
-                            ])
-                            ->createOptionUsing(function (array $data) {
-                                return \App\Models\Tag::create([
-                                    'name' => $data['name'],
-                                    'slug' => Str::slug($data['name']),
-                                ])->id;
-                            })
-                            ->columnSpanFull(),
-
-                        Toggle::make('is_featured')
-                            ->label('Ana səhifədə önə çıxar')
-                            ->default(false),
-
-                        Toggle::make('is_published')
-                            ->label('Dərc edilsin')
-                            ->default(true),
-                    ])->columns(2),
-
-                    // TAB 2: Dizayn & Rənglər
-                    Tab::make('Vizual & Rənglər')->schema([
-                        CuratorPicker::make('image')
-                            ->label('Əsas Vitrin Şəkli (Curator)')
-                            ->buttonLabel('Şəkil seç')
-                            ->required(),
-
-                        ColorPicker::make('bg_light')
-                            ->label('Light Kart Fon Rəngi (HEX)')
-                            ->default('#FECDD3')
-                            ->required(),
-
-                        ColorPicker::make('bg_dark')
-                            ->label('Dark Kart Fon Rəngi (HEX)')
-                            ->default('#230A10')
-                            ->required(),
-
-                        CuratorPicker::make('gallery')
-                            ->label('Qalereya Şəkilləri (Curator)')
-                            ->buttonLabel('Şəkilləri seç')
-                            ->multiple()
-                            ->columnSpanFull(),
-                    ])->columns(3),
-
-                    // TAB 3: Spesifikasiyalar (Specs)
-                    Tab::make('Göstəricilər (Specs)')->schema([
-                        Repeater::make('specs')
-                            ->label('Texniki Göstəricilər (Müştəri, Sahə, Xidmət, Müddət)')
+                // Sol Tərəf: Məzmun, Göstəricilər və SEO (2/3 en)
+                Group::make()
+                    ->schema([
+                        // Məzmun və Təsvir
+                        Section::make('Məzmun və Təsvir')
                             ->schema([
-                                TextInput::make('label')->label('Parametr')->required(),
-                                TextInput::make('value')->label('Dəyər')->required(),
-                            ])
-                            ->columns(2)
-                            ->default([
-                                ['label' => 'Müştəri', 'value' => ''],
-                                ['label' => 'Sahə', 'value' => ''],
-                                ['label' => 'Xidmət', 'value' => ''],
-                                ['label' => 'Müddət', 'value' => ''],
-                            ])
-                            ->columnSpanFull(),
-                    ]),
+                                Tabs::make('Məzmun Dilləri')->tabs([
+                                    // 1. Azərbaycan (AZ)
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        TextInput::make('title.az')
+                                            ->label('Başlıq')
+                                            ->required()
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('project_code', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
 
-                    // TAB 4: Azərbaycan (AZ)
-                    Tab::make('Azərbaycan (AZ)')->schema([
-                        TextInput::make('title.az')
-                            ->label('Layihə Başlığı (AZ)')
-                            ->required(),
+                                        TextInput::make('project_code')
+                                            ->label('Link')
+                                            ->required()
+                                            ->unique(ignoreRecord: true)
+                                            ->columnSpanFull(),
 
-                        Textarea::make('description.az')
-                            ->label('Kart Təsviri (AZ)')
-                            ->rows(2)
-                            ->required(),
+                                        Textarea::make('description.az')
+                                            ->label('Qısa Təsvir')
+                                            ->rows(2)
+                                            ->required()
+                                            ->columnSpanFull(),
 
-                        Textarea::make('challenge.az')
-                            ->label('Müştərinin Problemi / Çətinlik (Challenge - AZ)')
-                            ->rows(3),
+                                        Textarea::make('challenge.az')
+                                            ->label('Çətinlik / Problem')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                        Textarea::make('solution.az')
-                            ->label('Təqdim Edilən Həll (Solution - AZ)')
-                            ->rows(3),
+                                        Textarea::make('solution.az')
+                                            ->label('Təqdim Edilən Həll')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                        Repeater::make('overview.az')
-                            ->label('Ümumi Baxış Paraqrafları (AZ)')
-                            ->simple(Textarea::make('paragraph')->rows(2)->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                        Repeater::make('overview.az')
+                                            ->label('Ümumi Baxış')
+                                            ->simple(Textarea::make('paragraph')->rows(2)->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Repeater::make('features.az')
-                            ->label('Əsas Funksiyalar (AZ)')
-                            ->simple(TextInput::make('feature')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                        Repeater::make('features.az')
+                                            ->label('Əsas Funksiyalar')
+                                            ->simple(TextInput::make('feature')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Repeater::make('results.az')
-                            ->label('Əldə Olunan Nəticələr (AZ)')
-                            ->simple(TextInput::make('result')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                        Repeater::make('results.az')
+                                            ->label('Nəticələr')
+                                            ->simple(TextInput::make('result')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
 
-                        TextInput::make('meta_title.az')
-                            ->label('SEO Meta Başlıq (AZ)'),
+                                    // 2. English (EN)
+                                    Tab::make('English (EN)')->schema([
+                                        TextInput::make('title.en')
+                                            ->label('Title')
+                                            ->columnSpanFull(),
 
-                        Textarea::make('meta_description.az')
-                            ->label('SEO Meta Təsvir (AZ)')
-                            ->rows(2),
-                    ])->columns(2),
+                                        Textarea::make('description.en')
+                                            ->label('Short Description')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
 
-                    // TAB 5: English (EN)
-                    Tab::make('English (EN)')->schema([
-                        TextInput::make('title.en')
-                            ->label('Project Title (EN)'),
+                                        Textarea::make('challenge.en')
+                                            ->label('Challenge')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                        Textarea::make('description.en')
-                            ->label('Card Description (EN)')
-                            ->rows(2),
+                                        Textarea::make('solution.en')
+                                            ->label('Solution')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                        Textarea::make('challenge.en')
-                            ->label('Client Challenge (EN)')
-                            ->rows(3),
+                                        Repeater::make('overview.en')
+                                            ->label('Overview')
+                                            ->simple(Textarea::make('paragraph')->rows(2)->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Textarea::make('solution.en')
-                            ->label('Solution Provided (EN)')
-                            ->rows(3),
+                                        Repeater::make('features.en')
+                                            ->label('Key Features')
+                                            ->simple(TextInput::make('feature')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Repeater::make('overview.en')
-                            ->label('Overview Paragraphs (EN)')
-                            ->simple(Textarea::make('paragraph')->rows(2)->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                        Repeater::make('results.en')
+                                            ->label('Results')
+                                            ->simple(TextInput::make('result')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
 
-                        Repeater::make('features.en')
-                            ->label('Key Features (EN)')
-                            ->simple(TextInput::make('feature')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                    // 3. Русский (RU)
+                                    Tab::make('Русский (RU)')->schema([
+                                        TextInput::make('title.ru')
+                                            ->label('Заголовок')
+                                            ->columnSpanFull(),
 
-                        Repeater::make('results.en')
-                            ->label('Results Achieved (EN)')
-                            ->simple(TextInput::make('result')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                        Textarea::make('description.ru')
+                                            ->label('Краткое описание')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
 
-                        TextInput::make('meta_title.en')
-                            ->label('SEO Meta Title (EN)'),
+                                        Textarea::make('challenge.ru')
+                                            ->label('Проблема')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                        Textarea::make('meta_description.en')
-                            ->label('SEO Meta Description (EN)')
-                            ->rows(2),
-                    ])->columns(2),
+                                        Textarea::make('solution.ru')
+                                            ->label('Решение')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
 
-                    // TAB 6: Русский (RU)
-                    Tab::make('Русский (RU)')->schema([
-                        TextInput::make('title.ru')
-                            ->label('Заголовок проекта (RU)'),
+                                        Repeater::make('overview.ru')
+                                            ->label('Обзор')
+                                            ->simple(Textarea::make('paragraph')->rows(2)->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Textarea::make('description.ru')
-                            ->label('Описание карточки (RU)')
-                            ->rows(2),
+                                        Repeater::make('features.ru')
+                                            ->label('Основные функции')
+                                            ->simple(TextInput::make('feature')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
 
-                        Textarea::make('challenge.ru')
-                            ->label('Проблема клиента (RU)')
-                            ->rows(3),
+                                        Repeater::make('results.ru')
+                                            ->label('Результаты')
+                                            ->simple(TextInput::make('result')->required())
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
 
-                        Textarea::make('solution.ru')
-                            ->label('Предоставленное решение (RU)')
-                            ->rows(3),
+                        // Göstəricilər
+                        Section::make('Göstəricilər')
+                            ->schema([
+                                Tabs::make('Göstəricilər Dilləri')->tabs([
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        Repeater::make('specs.az')
+                                            ->label('Göstəricilər')
+                                            ->schema([
+                                                TextInput::make('label')->label('Parametr')->required(),
+                                                TextInput::make('value')->label('Dəyər')->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->default([
+                                                ['label' => 'Müştəri', 'value' => ''],
+                                                ['label' => 'Sahə', 'value' => ''],
+                                                ['label' => 'Xidmət', 'value' => ''],
+                                                ['label' => 'Müddət', 'value' => ''],
+                                            ])
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
 
-                        Repeater::make('overview.ru')
-                            ->label('Параграфы обзора (RU)')
-                            ->simple(Textarea::make('paragraph')->rows(2)->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                    Tab::make('English (EN)')->schema([
+                                        Repeater::make('specs.en')
+                                            ->label('Specifications')
+                                            ->schema([
+                                                TextInput::make('label')->label('Parametr')->required(),
+                                                TextInput::make('value')->label('Dəyər')->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->default([
+                                                ['label' => 'Client', 'value' => ''],
+                                                ['label' => 'Industry', 'value' => ''],
+                                                ['label' => 'Service', 'value' => ''],
+                                                ['label' => 'Duration', 'value' => ''],
+                                            ])
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
 
-                        Repeater::make('features.ru')
-                            ->label('Основные функции (RU)')
-                            ->simple(TextInput::make('feature')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                                    Tab::make('Русский (RU)')->schema([
+                                        Repeater::make('specs.ru')
+                                            ->label('Показатели')
+                                            ->schema([
+                                                TextInput::make('label')->label('Parametr')->required(),
+                                                TextInput::make('value')->label('Dəyər')->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->default([
+                                                ['label' => 'Клиент', 'value' => ''],
+                                                ['label' => 'Отрасль', 'value' => ''],
+                                                ['label' => 'Услуга', 'value' => ''],
+                                                ['label' => 'Срок', 'value' => ''],
+                                            ])
+                                            ->reorderable()
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
 
-                        Repeater::make('results.ru')
-                            ->label('Достигнутые результаты (RU)')
-                            ->simple(TextInput::make('result')->required())
-                            ->reorderable()
-                            ->collapsible(),
+                        // SEO Parametrləri
+                        Section::make('SEO Parametrləri')
+                            ->schema([
+                                Tabs::make('SEO Dilləri')->tabs([
+                                    Tab::make('Azərbaycan (AZ)')->schema([
+                                        TextInput::make('meta_title.az')
+                                            ->label('Meta Başlıq')
+                                            ->columnSpanFull(),
 
-                        TextInput::make('meta_title.ru')
-                            ->label('SEO Мета Заголовок (RU)'),
+                                        Textarea::make('meta_description.az')
+                                            ->label('Meta Təsvir')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
 
-                        Textarea::make('meta_description.ru')
-                            ->label('SEO Мета Описание (RU)')
-                            ->rows(2),
-                    ])->columns(2),
-                ])->columnSpanFull(),
-            ]);
+                                    Tab::make('English (EN)')->schema([
+                                        TextInput::make('meta_title.en')
+                                            ->label('Meta Title')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('meta_description.en')
+                                            ->label('Meta Description')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                    Tab::make('Русский (RU)')->schema([
+                                        TextInput::make('meta_title.ru')
+                                            ->label('Мета Заголовок')
+                                            ->columnSpanFull(),
+
+                                        Textarea::make('meta_description.ru')
+                                            ->label('Мета Описание')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                    ]),
+                                ])->columnSpanFull(),
+                            ]),
+                    ])
+                    ->columnSpan(['lg' => 2]),
+
+                // Sağ Tərəf: Media və Layihə Parametrləri (1/3 en)
+                Group::make()
+                    ->schema([
+                        // Media & Vizual
+                        Section::make('Media və Rənglər')
+                            ->schema([
+                                CuratorPicker::make('image')
+                                    ->label('Əsas Şəkil')
+                                    ->buttonLabel('Şəkil seç')
+                                    ->required(),
+
+                                CuratorPicker::make('gallery')
+                                    ->label('Qalereya Şəkilləri')
+                                    ->buttonLabel('Şəkilləri seç')
+                                    ->multiple(),
+
+                                ColorPicker::make('bg_light')
+                                    ->label('Açıq Fon Rəngi')
+                                    ->default('#FECDD3')
+                                    ->required(),
+
+                                ColorPicker::make('bg_dark')
+                                    ->label('Qaranlıq Fon Rəngi')
+                                    ->default('#230A10')
+                                    ->required(),
+                            ]),
+
+                        // Layihə Parametrləri
+                        Section::make('Layihə Parametrləri')
+                            ->schema([
+                                TextInput::make('client')
+                                    ->label('Müştəri')
+                                    ->required(),
+
+                                Select::make('category_id')
+                                    ->label('Kateqoriya')
+                                    ->relationship('category', 'name')
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? $record->name)
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
+
+                                Select::make('tags')
+                                    ->label('Teqlər')
+                                    ->relationship('tags', 'name')
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->getTranslation('name', 'az') ?? (is_array($record->name) ? ($record->name['az'] ?? reset($record->name)) : $record->name))
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        TextInput::make('name_az')->label('Teq Adı')->required(),
+                                        TextInput::make('name_en')->label('Tag Name')->required(),
+                                        TextInput::make('name_ru')->label('Название тега')->required(),
+                                    ])
+                                    ->createOptionUsing(function (array $data) {
+                                        return \App\Models\Tag::create([
+                                            'name' => [
+                                                'az' => $data['name_az'],
+                                                'en' => $data['name_en'],
+                                                'ru' => $data['name_ru'],
+                                            ],
+                                            'slug' => [
+                                                'az' => Str::slug($data['name_az']),
+                                                'en' => Str::slug($data['name_en']),
+                                                'ru' => Str::slug($data['name_ru']),
+                                            ],
+                                        ])->id;
+                                    }),
+
+                                TextInput::make('year')
+                                    ->label('İl')
+                                    ->default('2026')
+                                    ->maxLength(4),
+
+                                TextInput::make('website_url')
+                                    ->label('Veb-sayt')
+                                    ->url(),
+
+                                Toggle::make('is_featured')
+                                    ->label('Önə çıxar')
+                                    ->default(false),
+
+                                Toggle::make('is_published')
+                                    ->label('Dərc edilsin')
+                                    ->default(true),
+                            ]),
+                    ])
+                    ->columnSpan(['lg' => 1]),
+            ])
+            ->columns(3);
     }
 }

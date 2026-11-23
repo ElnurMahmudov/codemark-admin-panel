@@ -16,19 +16,19 @@ class RolesTable
         return $table
             ->columns([
                 TextColumn::make('display_name')
-                    ->label('Role Name')
+                    ->label('Rolun Adı')
                     ->searchable()
                     ->description(fn ($record) => $record->name),
 
                 TextColumn::make('permissions_count')
-                    ->label('Permissions')
+                    ->label('İcazələrin Sayı')
                     ->counts('permissions')
                     ->badge()
                     ->color('info')
                     ->sortable(),
 
                 TextColumn::make('created_at')
-                    ->label('Created At')
+                    ->label('Yaradılma Tarixi')
                     ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

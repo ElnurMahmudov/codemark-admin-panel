@@ -21,11 +21,11 @@ class TagResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 3;
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Məzmun İdarəetməsi';
+        return 'Bloq İdarəetməsi';
     }
 
     public static function getNavigationLabel(): string

@@ -23,48 +23,49 @@ class BlogCategoryForm
                         Tabs::make('Dillər')->tabs([
                             Tab::make('Azərbaycan (AZ)')->schema([
                                 TextInput::make('name.az')
-                                    ->label('Ad (AZ)')
+                                    ->label('Ad')
                                     ->required()
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.az', Str::slug($state))),
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.az', Str::slug($state ?? '')))
+                                    ->columnSpanFull(),
 
                                 TextInput::make('slug.az')
-                                    ->label('Slug (AZ)')
-                                    ->required(),
-                            ])->columns(2),
+                                    ->label('Link')
+                                    ->required()
+                                    ->columnSpanFull(),
+                            ]),
 
                             Tab::make('English (EN)')->schema([
                                 TextInput::make('name.en')
-                                    ->label('Name (EN)')
+                                    ->label('Name')
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.en', Str::slug($state))),
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.en', Str::slug($state ?? '')))
+                                    ->columnSpanFull(),
 
                                 TextInput::make('slug.en')
-                                    ->label('Slug (EN)'),
-                            ])->columns(2),
+                                    ->label('Link')
+                                    ->columnSpanFull(),
+                            ]),
 
                             Tab::make('Русский (RU)')->schema([
                                 TextInput::make('name.ru')
-                                    ->label('Название (RU)')
+                                    ->label('Название')
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.ru', Str::slug($state))),
+                                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug.ru', Str::slug($state ?? '')))
+                                    ->columnSpanFull(),
 
                                 TextInput::make('slug.ru')
-                                    ->label('Slug (RU)'),
-                            ])->columns(2),
+                                    ->label('Ссылка')
+                                    ->columnSpanFull(),
+                            ]),
                         ])->columnSpanFull(),
 
-                        Grid::make(2)->schema([
-                            TextInput::make('order_column')
-                                ->label('Sıralama')
-                                ->numeric()
-                                ->default(0),
-
-                            Toggle::make('is_active')
-                                ->label('Aktivdir')
-                                ->default(true),
-                        ]),
-                    ]),
-            ]);
+                        Toggle::make('is_active')
+                            ->label('Aktivdir')
+                            ->default(true),
+                    ])
+                    ->columnSpanFull(),
+            ])
+            ->columns(1);
     }
 }

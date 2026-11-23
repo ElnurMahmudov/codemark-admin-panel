@@ -20,7 +20,7 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
@@ -43,11 +43,26 @@ class RoleResource extends Resource
         return 'heroicon-o-shield-check';
     }
 
-    protected static ?string $recordTitleAttribute = 'Role';
+    protected static ?string $recordTitleAttribute = 'display_name';
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Users';
+        return 'İstifadəçilər';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Rollar və İcazələr';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Rollar';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'Rol';
     }
 
     public static function form(Schema $schema): Schema

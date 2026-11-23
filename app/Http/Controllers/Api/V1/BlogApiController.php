@@ -37,7 +37,7 @@ class BlogApiController extends Controller
                 'category' => $post->category ? ($post->category->getTranslation('name', $locale) ?: $post->category->name) : null,
                 'excerpt' => $post->getTranslation('excerpt', $locale) ?: $post->excerpt,
                 'image' => $post->image_url,
-                'tags' => $post->tags->pluck('name')->values()->all(),
+                'tags' => $post->tags->map(fn ($tag) => $tag->getTranslation('name', $locale) ?: (is_array($tag->name) ? ($tag->name[$locale] ?? reset($tag->name)) : $tag->name))->values()->all(),
                 'publishedAt' => $post->published_at ? $post->published_at->format('d M Y') : null,
                 'author' => $post->getTranslation('author', $locale) ?: ($post->author ?: 'CODEMARK'),
             ];
@@ -79,11 +79,11 @@ class BlogApiController extends Controller
                 'title' => $post->getTranslation('title', $locale) ?: $post->title,
                 'category' => $post->category ? ($post->category->getTranslation('name', $locale) ?: $post->category->name) : null,
                 'excerpt' => $post->getTranslation('excerpt', $locale) ?: $post->excerpt,
+                'content' => $post->getTranslation('content', $locale) ?: $post->content,
                 'image' => $post->image_url,
-                'tags' => $post->tags->pluck('name')->values()->all(),
+                'tags' => $post->tags->map(fn ($tag) => $tag->getTranslation('name', $locale) ?: (is_array($tag->name) ? ($tag->name[$locale] ?? reset($tag->name)) : $tag->name))->values()->all(),
                 'publishedAt' => $post->published_at ? $post->published_at->format('d M Y') : null,
                 'author' => $post->getTranslation('author', $locale) ?: ($post->author ?: 'CODEMARK'),
-                'sections' => $post->sections ?? [],
                 'seo' => [
                     'metaTitle' => $post->getTranslation('meta_title', $locale) ?: $post->meta_title,
                     'metaDescription' => $post->getTranslation('meta_description', $locale) ?: $post->meta_description,
