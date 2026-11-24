@@ -52,8 +52,8 @@ class BlogPostsTable
                 TernaryFilter::make('is_published')->label('Dərc Statusu'),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()->iconButton(),
+                DeleteAction::make()->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

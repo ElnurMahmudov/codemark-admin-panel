@@ -31,10 +31,13 @@ class AnalyticsApiController extends Controller
                 $visitable = $post;
                 $post->increment('views_count');
             }
-        } elseif (preg_match('#^/projects/([^/?]+)#', $path, $matches)) {
+        } elseif (preg_match('#^/(?:projects|layiheler|layihələr)/([^/?]+)#', $path, $matches)) {
             $code = $matches[1];
             $project = Project::query()
-                ->where('project_code', $code)
+                ->where('slug->az', $code)
+                ->orWhere('slug->en', $code)
+                ->orWhere('slug->ru', $code)
+                ->orWhere('project_code', $code)
                 ->first();
 
             if ($project) {

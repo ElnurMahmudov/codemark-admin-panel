@@ -7,7 +7,6 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -27,9 +26,9 @@ class ProjectsTable
                 TextColumn::make('title')
                     ->label('Başlıq')
                     ->formatStateUsing(fn ($record) => $record?->getTranslation('title', 'az') ?? (is_array($record?->title) ? ($record->title['az'] ?? reset($record->title)) : $record?->title))
+                    ->description(fn ($record) => $record?->getTranslation('slug', 'az') ?: $record?->project_code)
                     ->searchable()
                     ->limit(35),
-                TextColumn::make('client')->label('Müştəri')->searchable(),
                 TextColumn::make('category.name')
                     ->label('Kateqoriya')
                     ->formatStateUsing(fn ($state, $record) => $record?->category?->getTranslation('name', 'az') ?? (is_array($state) ? ($state['az'] ?? reset($state)) : $state))
@@ -39,8 +38,6 @@ class ProjectsTable
                     ->formatStateUsing(fn ($record) => $record->tags->map(fn ($t) => $t->getTranslation('name', 'az') ?? (is_array($t->name) ? ($t->name['az'] ?? reset($t->name)) : $t->name))->implode(', '))
                     ->badge()
                     ->color('info'),
-                ColorColumn::make('bg_light')->label('Light Fon'),
-                ColorColumn::make('bg_dark')->label('Dark Fon'),
                 TextColumn::make('views_count')
                     ->label('Baxış')
                     ->sortable()
@@ -57,8 +54,8 @@ class ProjectsTable
                 TernaryFilter::make('is_featured')->label('Önə Çıxanlar'),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()->iconButton(),
+                DeleteAction::make()->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

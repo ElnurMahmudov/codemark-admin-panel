@@ -14,6 +14,7 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
@@ -40,13 +41,24 @@ class ProjectForm
                                             ->label('Başlıq')
                                             ->required()
                                             ->live(onBlur: true)
-                                            ->afterStateUpdated(fn ($state, Set $set) => $set('project_code', Str::slug($state ?? '')))
+                                            ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                                $slug = Str::slug($state ?? '');
+                                                $set('slug.az', $slug);
+                                                if (blank($get('project_code'))) {
+                                                    $set('project_code', $slug);
+                                                }
+                                            })
                                             ->columnSpanFull(),
 
-                                        TextInput::make('project_code')
+                                        TextInput::make('slug.az')
                                             ->label('Link')
                                             ->required()
-                                            ->unique(ignoreRecord: true)
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                                if (blank($get('project_code'))) {
+                                                    $set('project_code', Str::slug($state ?? ''));
+                                                }
+                                            })
                                             ->columnSpanFull(),
 
                                         Textarea::make('description.az')
@@ -91,6 +103,12 @@ class ProjectForm
                                     Tab::make('English (EN)')->schema([
                                         TextInput::make('title.en')
                                             ->label('Title')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('slug.en', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('slug.en')
+                                            ->label('Slug / Link')
                                             ->columnSpanFull(),
 
                                         Textarea::make('description.en')
@@ -134,6 +152,12 @@ class ProjectForm
                                     Tab::make('Русский (RU)')->schema([
                                         TextInput::make('title.ru')
                                             ->label('Заголовок')
+                                            ->live(onBlur: true)
+                                            ->afterStateUpdated(fn ($state, Set $set) => $set('slug.ru', Str::slug($state ?? '')))
+                                            ->columnSpanFull(),
+
+                                        TextInput::make('slug.ru')
+                                            ->label('Ссылка (Slug)')
                                             ->columnSpanFull(),
 
                                         Textarea::make('description.ru')
@@ -309,6 +333,11 @@ class ProjectForm
                         // Layihə Parametrləri
                         Section::make('Layihə Parametrləri')
                             ->schema([
+                                TextInput::make('project_code')
+                                    ->label('Layihə Kodu (ID)')
+                                    ->helperText('Sistem üçün unikal identifikator')
+                                    ->unique(ignoreRecord: true),
+
                                 TextInput::make('client')
                                     ->label('Müştəri')
                                     ->required(),

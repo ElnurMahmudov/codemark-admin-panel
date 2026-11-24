@@ -19,6 +19,7 @@ class Project extends Model implements Sortable
 
     public array $translatable = [
         'title',
+        'slug',
         'description',
         'specs',
         'challenge',
@@ -32,6 +33,7 @@ class Project extends Model implements Sortable
 
     protected $fillable = [
         'project_code',
+        'slug',
         'category_id',
         'client',
         'year',
@@ -77,7 +79,8 @@ class Project extends Model implements Sortable
     {
         static::saving(function (Project $project) {
             if (empty($project->project_code)) {
-                $source = $project->getTranslation('title', 'az') ?: $project->client ?: ('project-' . uniqid());
+                $azSlug = $project->getTranslation('slug', 'az');
+                $source = $azSlug ?: ($project->getTranslation('title', 'az') ?: $project->client ?: ('project-' . uniqid()));
                 $slug = Str::slug($source);
                 $originalSlug = $slug;
                 $count = 1;
@@ -85,6 +88,14 @@ class Project extends Model implements Sortable
                     $slug = $originalSlug . '-' . $count++;
                 }
                 $project->project_code = $slug;
+            }
+
+            // Ensure slug.az defaults to project_code or title if empty
+            if (empty($project->getTranslation('slug', 'az'))) {
+                $azSource = $project->project_code ?: ($project->getTranslation('title', 'az') ?: $project->client);
+                if ($azSource) {
+                    $project->setTranslation('slug', 'az', Str::slug($azSource));
+                }
             }
         });
     }

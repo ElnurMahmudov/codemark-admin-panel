@@ -21,6 +21,7 @@ class TranslateWithAiAction
             ->action(function (Get $get, Set $set) {
                 $azTitle = $get('title.az');
                 $azDesc = $get('description.az');
+                $azSlug = $get('slug.az') ?: Str::slug($azTitle ?? '');
 
                 if (blank($azTitle) && blank($azDesc)) {
                     Notification::make()
@@ -33,6 +34,7 @@ class TranslateWithAiAction
 
                 $payload = [
                     'title' => $azTitle,
+                    'slug' => $azSlug,
                     'description' => $azDesc,
                     'challenge' => $get('challenge.az'),
                     'solution' => $get('solution.az'),
@@ -54,7 +56,14 @@ class TranslateWithAiAction
 
                         $item = $translations[$lang];
 
-                        if (! empty($item['title'])) $set("title.{$lang}", $item['title']);
+                        if (! empty($item['title'])) {
+                            $set("title.{$lang}", $item['title']);
+                        }
+                        if (! empty($item['slug'])) {
+                            $set("slug.{$lang}", Str::slug($item['slug']));
+                        } elseif (! empty($item['title'])) {
+                            $set("slug.{$lang}", Str::slug($item['title']));
+                        }
                         if (! empty($item['description'])) $set("description.{$lang}", $item['description']);
                         if (! empty($item['challenge'])) $set("challenge.{$lang}", $item['challenge']);
                         if (! empty($item['solution'])) $set("solution.{$lang}", $item['solution']);

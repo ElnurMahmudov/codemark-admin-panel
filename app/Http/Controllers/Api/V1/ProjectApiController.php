@@ -34,6 +34,7 @@ class ProjectApiController extends Controller
         $projects = $query->get()->map(function ($project) use ($locale) {
             return [
                 'id' => $project->project_code,
+                'slug' => $project->getTranslation('slug', $locale) ?: $project->project_code,
                 'title' => $project->getTranslation('title', $locale) ?: $project->title,
                 'client' => $project->client,
                 'category' => $project->category ? ($project->category->getTranslation('name', $locale) ?: $project->category->name) : null,
@@ -67,7 +68,13 @@ class ProjectApiController extends Controller
 
         $project = Project::query()
             ->with(['category', 'tags'])
-            ->where('project_code', $code)
+            ->where(function ($q) use ($code, $locale) {
+                $q->where("slug->{$locale}", $code)
+                  ->orWhere('slug->az', $code)
+                  ->orWhere('slug->en', $code)
+                  ->orWhere('slug->ru', $code)
+                  ->orWhere('project_code', $code);
+            })
             ->firstOrFail();
 
         $project->increment('views_count');
@@ -77,6 +84,7 @@ class ProjectApiController extends Controller
             'success' => true,
             'data' => [
                 'id' => $project->project_code,
+                'slug' => $project->getTranslation('slug', $locale) ?: $project->project_code,
                 'title' => $project->getTranslation('title', $locale) ?: $project->title,
                 'client' => $project->client,
                 'category' => $project->category ? ($project->category->getTranslation('name', $locale) ?: $project->category->name) : null,
