@@ -15,9 +15,11 @@ class TagsTable
     {
         return $table
             ->reorderable('order_column')
-            ->defaultSort('order_column')
+            ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('order_column')->label('#')->sortable(),
+                TextColumn::make('index')
+                    ->label('#')
+                    ->rowIndex(),
                 TextColumn::make('name')
                     ->label('Teq Adı')
                     ->formatStateUsing(fn ($record) => $record?->getTranslation('name', 'az') ?? (is_array($record?->name) ? ($record->name['az'] ?? reset($record->name)) : $record?->name))
@@ -29,7 +31,8 @@ class TagsTable
                     ->searchable(),
                 TextColumn::make('posts_count')->counts('posts')->label('Məqalələr')->badge()->color('info'),
                 TextColumn::make('projects_count')->counts('projects')->label('Layihələr')->badge()->color('success'),
-                TextColumn::make('created_at')->label('Yaradılma')->dateTime('d.m.Y H:i')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('created_at')->label('Yaradılma')->dateTime('d.m.Y H:i')->sortable(),
+                TextColumn::make('order_column')->label('Sıra')->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //

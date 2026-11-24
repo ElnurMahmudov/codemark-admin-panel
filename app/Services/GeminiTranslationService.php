@@ -17,11 +17,12 @@ class GeminiTranslationService
         $this->apiKey = config('services.gemini.api_key') ?: env('GEMINI_API_KEY');
         $primaryModel = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-3.5-flash-lite');
 
-        // Only ultra-fast, high-quota, production-stable models.
-        // NOTE: gemini-3.8-flash, gemini-3.5-flash, and preview models are excluded for maximum stability and speed.
+        // Resilient, ultra-fast, high-quota models across multiple model clusters.
+        // gemini-3.5-flash-lite is primary, gemini-3-flash-preview provides instant fallback when lite cluster experiences 503 spikes.
         $this->models = array_values(array_unique(array_filter([
             $primaryModel,
             'gemini-3.5-flash-lite',
+            'gemini-3-flash-preview',
             'gemini-3.1-flash-lite',
             'gemini-flash-lite-latest',
         ])));
@@ -94,67 +95,82 @@ PROMPT;
             $apiVersion = (str_contains($model, 'preview') || str_contains($model, 'latest')) ? 'v1beta' : 'v1';
             $endpoint = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$model}:generateContent?key={$this->apiKey}";
 
-            try {
-                Log::info("Gemini translating to {$targetLanguage} via {$model} ({$apiVersion})");
+            $attempts = 0;
+            $maxAttempts = 2; // Allow 1 quick retry for transient 503 (high demand spike)
 
-                $response = Http::connectTimeout(10)
-                    ->timeout(60)
-                    ->post($endpoint, [
-                        'contents' => [
-                            [
-                                'parts' => [
-                                    ['text' => $systemPrompt . "\n\n" . $userPrompt],
+            while ($attempts < $maxAttempts) {
+                $attempts++;
+                try {
+                    Log::info("Gemini translating to {$targetLanguage} via {$model} ({$apiVersion}), attempt {$attempts}");
+
+                    $response = Http::connectTimeout(10)
+                        ->timeout(45)
+                        ->post($endpoint, [
+                            'contents' => [
+                                [
+                                    'parts' => [
+                                        ['text' => $systemPrompt . "\n\n" . $userPrompt],
+                                    ],
                                 ],
                             ],
-                        ],
-                        'generationConfig' => [
-                            'response_mime_type' => 'application/json',
-                            'temperature' => 0.1,
-                        ],
-                    ]);
+                            'generationConfig' => [
+                                'response_mime_type' => 'application/json',
+                                'temperature' => 0.1,
+                            ],
+                        ]);
 
-                if ($response->successful()) {
-                    $parts = $response->json('candidates.0.content.parts', []);
-                    $rawText = '';
-                    foreach ($parts as $part) {
-                        if (isset($part['text']) && !($part['thought'] ?? false)) {
-                            $rawText .= $part['text'];
+                    if ($response->successful()) {
+                        $parts = $response->json('candidates.0.content.parts', []);
+                        $rawText = '';
+                        foreach ($parts as $part) {
+                            if (isset($part['text']) && !($part['thought'] ?? false)) {
+                                $rawText .= $part['text'];
+                            }
+                        }
+
+                        if (empty($rawText)) {
+                            $rawText = (string) $response->json('candidates.0.content.parts.0.text', '');
+                        }
+
+                        if (filled($rawText)) {
+                            $decoded = $this->parseJsonResponse($rawText);
+
+                            // If model wrapped response inside {"en": {...}} or {"data": {...}}, unwrap it
+                            if (isset($decoded[$targetLanguage]) && is_array($decoded[$targetLanguage])) {
+                                $decoded = $decoded[$targetLanguage];
+                            }
+
+                            if (is_array($decoded) && !empty($decoded)) {
+                                Log::info("Gemini translation to {$targetLanguage} succeeded via {$model}");
+                                return $decoded;
+                            }
                         }
                     }
 
-                    if (empty($rawText)) {
-                        $rawText = (string) $response->json('candidates.0.content.parts.0.text', '');
+                    $statusCode = $response->status();
+                    $errorMsg = $response->json('error.message') ?? $response->body();
+
+                    // If 503 (High Demand spike), wait 1.5s and retry once
+                    if ($statusCode === 503 && $attempts < $maxAttempts) {
+                        Log::warning("Gemini model {$model} 503 high demand spike, retrying after 1.5s...");
+                        usleep(1500000);
+                        continue;
                     }
 
-                    if (filled($rawText)) {
-                        $decoded = $this->parseJsonResponse($rawText);
-
-                        // If model wrapped response inside {"en": {...}} or {"data": {...}}, unwrap it
-                        if (isset($decoded[$targetLanguage]) && is_array($decoded[$targetLanguage])) {
-                            $decoded = $decoded[$targetLanguage];
-                        }
-
-                        if (is_array($decoded) && !empty($decoded)) {
-                            Log::info("Gemini translation to {$targetLanguage} succeeded via {$model}");
-                            return $decoded;
-                        }
+                    if ($statusCode === 429) {
+                        Log::warning("Gemini model {$model} quota exceeded (429), switching to next model.");
+                        $lastError = "Model {$model} kvota limiti aşılıb (429).";
+                        break;
                     }
+
+                    $lastError = "Model {$model} (Status {$statusCode}): " . Str::limit($errorMsg, 200);
+                    Log::warning("Gemini model {$model} error: {$lastError}");
+                    break;
+                } catch (Exception $e) {
+                    $lastError = "Model {$model} exception: " . $e->getMessage();
+                    Log::warning("Gemini model {$model} exception: {$lastError}");
+                    break;
                 }
-
-                $statusCode = $response->status();
-                $errorMsg = $response->json('error.message') ?? $response->body();
-
-                if ($statusCode === 429) {
-                    Log::warning("Gemini model {$model} quota exceeded (429), switching to next model.");
-                    $lastError = "Model {$model} kvota limiti aşılıb (429).";
-                    continue;
-                }
-
-                $lastError = "Model {$model} (Status {$statusCode}): " . Str::limit($errorMsg, 200);
-                Log::warning("Gemini model {$model} error: {$lastError}");
-            } catch (Exception $e) {
-                $lastError = "Model {$model} exception: " . $e->getMessage();
-                Log::warning("Gemini model {$model} exception: {$lastError}");
             }
         }
 

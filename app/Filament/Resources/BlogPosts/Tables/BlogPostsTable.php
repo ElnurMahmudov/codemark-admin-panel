@@ -7,8 +7,8 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
@@ -19,9 +19,11 @@ class BlogPostsTable
     {
         return $table
             ->reorderable('order_column')
-            ->defaultSort('order_column')
+            ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('order_column')->label('#')->sortable(),
+                TextColumn::make('index')
+                    ->label('#')
+                    ->rowIndex(),
                 CuratorColumn::make('image')->label('Şəkil')->size(40),
                 TextColumn::make('title')
                     ->label('Başlıq')
@@ -34,16 +36,34 @@ class BlogPostsTable
                     ->badge(),
                 TextColumn::make('tags')
                     ->label('Teqlər')
-                    ->formatStateUsing(fn ($record) => $record->tags->map(fn ($t) => $t->getTranslation('name', 'az') ?? (is_array($t->name) ? ($t->name['az'] ?? reset($t->name)) : $t->name))->implode(', '))
+                    ->state(function ($record): array {
+                        return $record->tags
+                            ?->map(fn ($tag) => $tag->getTranslation('name', 'az') ?? (is_array($tag->name) ? ($tag->name['az'] ?? reset($tag->name)) : $tag->name))
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all() ?? [];
+                    })
                     ->badge()
-                    ->color('info'),
+                    ->color('info')
+                    ->wrap()
+                    ->placeholder('—'),
                 TextColumn::make('published_at')->label('Tarix')->date('d.m.Y')->sortable(),
                 TextColumn::make('views_count')
                     ->label('Oxunma')
                     ->sortable()
                     ->badge()
                     ->color('info'),
-                IconColumn::make('is_published')->label('Dərc')->boolean(),
+                ToggleColumn::make('is_published')->label('Dərc'),
+                TextColumn::make('created_at')
+                    ->label('Yaradılma')
+                    ->dateTime('d.m.Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('order_column')
+                    ->label('Sıra')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('category_id')
