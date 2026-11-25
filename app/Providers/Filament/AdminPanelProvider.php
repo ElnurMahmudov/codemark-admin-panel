@@ -25,6 +25,12 @@ use Awcodes\Curator\CuratorPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
+    public function boot(): void
+    {
+        // Route cache aktiv olduqda Livewire update sorğuları üçün panel komponentlərini qeydiyyatdan keçir
+        \Filament\Facades\Filament::getPanels();
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel
