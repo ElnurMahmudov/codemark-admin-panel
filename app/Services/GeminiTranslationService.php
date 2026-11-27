@@ -3,12 +3,19 @@
 namespace App\Services;
 
 use Exception;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class GeminiTranslationService
 {
+    protected const TOTAL_BUDGET_SECONDS = 45.0;
+    protected const MAX_REQUEST_TIMEOUT_SECONDS = 22;
+    protected const CONNECT_TIMEOUT_SECONDS = 5;
+
     protected ?string $apiKey;
     protected array $models;
 
@@ -50,21 +57,151 @@ class GeminiTranslationService
             return [];
         }
 
-        $results = [];
+        [$sanitizedPayload, $inlineDataMap] = $this->extractInlineDataUris($payloadData);
+        $deadline = microtime(true) + self::TOTAL_BUDGET_SECONDS;
 
-        // Translating each target language separately ensures lightweight prompts,
-        // fast responses (~2-3 sec each), and zero grammar-generation bottlenecks.
-        foreach ($targetLanguages as $lang) {
-            $results[$lang] = $this->translateSingleLanguage($payloadData, $lang, $sourceLanguage);
+        $results = [];
+        $pendingLanguages = array_values($targetLanguages);
+        $lastErrors = [];
+
+        foreach ($this->models as $model) {
+            if (empty($pendingLanguages)) {
+                break;
+            }
+
+            $apiVersion = (str_contains($model, 'preview') || str_contains($model, 'latest')) ? 'v1beta' : 'v1';
+            $endpoint = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$model}:generateContent?key={$this->apiKey}";
+
+            $attempts = 0;
+            $maxAttempts = 2;
+
+            while ($attempts < $maxAttempts && ! empty($pendingLanguages)) {
+                $remaining = $deadline - microtime(true);
+                if ($remaining <= 2.0) {
+                    break 2;
+                }
+
+                $attempts++;
+                $requestTimeout = max(3, min(self::MAX_REQUEST_TIMEOUT_SECONDS, (int) floor($remaining)));
+
+                Log::info("Gemini translating [" . implode(',', $pendingLanguages) . "] via {$model} ({$apiVersion}), attempt {$attempts}");
+
+                $prompts = [];
+                foreach ($pendingLanguages as $lang) {
+                    $prompts[$lang] = $this->buildPrompt($sanitizedPayload, $lang, $sourceLanguage);
+                }
+
+                $responses = Http::pool(function (Pool $pool) use ($prompts, $endpoint, $requestTimeout) {
+                    $requests = [];
+                    foreach ($prompts as $lang => $prompt) {
+                        $requests[] = $pool->as($lang)
+                            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                            ->timeout($requestTimeout)
+                            ->post($endpoint, [
+                                'contents' => [
+                                    [
+                                        'parts' => [
+                                            ['text' => $prompt],
+                                        ],
+                                    ],
+                                ],
+                                'generationConfig' => [
+                                    'response_mime_type' => 'application/json',
+                                    'temperature' => 0.1,
+                                ],
+                            ]);
+                    }
+
+                    return $requests;
+                });
+
+                $retryable503 = [];
+
+                foreach ($pendingLanguages as $lang) {
+                    $response = $responses[$lang] ?? null;
+
+                    if ($response instanceof Throwable) {
+                        $lastErrors[$lang] = $this->sanitizeUtf8("Model {$model} exception: " . $response->getMessage());
+                        Log::warning("Gemini model {$model} ({$lang}) exception: {$lastErrors[$lang]}");
+                        continue;
+                    }
+
+                    if (! $response instanceof Response) {
+                        $lastErrors[$lang] = "Model {$model}: cavab alınmadı.";
+                        continue;
+                    }
+
+                    if ($response->successful()) {
+                        $decoded = $this->extractTranslatedArray($response, $lang);
+                        if (is_array($decoded) && ! empty($decoded)) {
+                            $results[$lang] = $this->restoreInlineDataUris($decoded, $inlineDataMap);
+                            unset($lastErrors[$lang]);
+                            Log::info("Gemini translation to {$lang} succeeded via {$model}");
+                            continue;
+                        }
+
+                        $lastErrors[$lang] = "Model {$model}: JSON cavabı parse edilə bilmədi.";
+                        Log::warning("Gemini model {$model} ({$lang}) returned unparseable JSON.");
+                        continue;
+                    }
+
+                    $statusCode = $response->status();
+                    $errorMsg = $this->sanitizeUtf8((string) ($response->json('error.message') ?? $response->body()));
+
+                    if ($statusCode === 503 && $attempts < $maxAttempts) {
+                        $retryable503[] = $lang;
+                        Log::warning("Gemini model {$model} ({$lang}) 503 high demand spike, will retry...");
+                    } elseif ($statusCode === 429) {
+                        $lastErrors[$lang] = "Model {$model} kvota limiti aşılıb (429).";
+                        Log::warning("Gemini model {$model} ({$lang}) quota exceeded (429), switching to next model.");
+                    } else {
+                        $lastErrors[$lang] = "Model {$model} (Status {$statusCode}): " . Str::limit($errorMsg, 200);
+                        Log::warning("Gemini model {$model} ({$lang}) error: {$lastErrors[$lang]}");
+                    }
+                }
+
+                // Keep only languages that have not succeeded yet
+                $nextPending = [];
+                foreach ($pendingLanguages as $lang) {
+                    if (! isset($results[$lang])) {
+                        $nextPending[] = $lang;
+                    }
+                }
+
+                if (! empty($retryable503) && ($deadline - microtime(true)) > 5.0) {
+                    // Only retry the languages that hit 503 on this model
+                    $pendingLanguages = $retryable503;
+                    usleep(1000000);
+                } else {
+                    $pendingLanguages = $nextPending;
+                    break;
+                }
+            }
+
+            // Recompute all remaining unfinished languages before trying next model
+            $pendingLanguages = array_values(array_filter(
+                $targetLanguages,
+                fn (string $lang) => ! isset($results[$lang])
+            ));
+        }
+
+        if (! empty($pendingLanguages)) {
+            $failedLang = $pendingLanguages[0];
+            $langNames = ['en' => 'English', 'ru' => 'Russian', 'az' => 'Azerbaijani'];
+            $targetName = $langNames[$failedLang] ?? strtoupper($failedLang);
+            $errorDetail = $lastErrors[$failedLang] ?? 'Server vaxt limitinə görə cavab alınmadı.';
+
+            Log::error("Gemini translation failed for [" . implode(',', $pendingLanguages) . "]: " . $errorDetail);
+            throw new Exception($this->sanitizeUtf8("Gemini tərcümə xətası ({$targetName}): {$errorDetail}"));
         }
 
         return $results;
     }
 
     /**
-     * Translates payload into a single target language.
+     * Build prompt for a single target language.
      */
-    protected function translateSingleLanguage(array $payloadData, string $targetLanguage, string $sourceLanguage = 'az'): array
+    protected function buildPrompt(array $payloadData, string $targetLanguage, string $sourceLanguage): string
     {
         $langNames = [
             'en' => 'English',
@@ -82,100 +219,98 @@ CRITICAL RULES:
 1. Maintain high-end modern tech, UI/UX, and business terminology.
 2. Preserve the exact JSON keys, hierarchy, and data structure.
 3. For RichText/HTML fields, preserve all HTML tags (e.g. <p>, <strong>, <em>, <ul>, <li>, <a>, <h1>, <h2>, <h3>, <blockquote>, <pre>, <code>), translating only the human-readable text inside them.
-4. Do not translate the brand name "Codemark" or registered trademarks.
+4. Do not translate the brand name "Codemark", registered trademarks, or placeholder tokens like __INLINE_DATA_0__.
 5. If any field represents a slug (e.g. "slug"), generate a clean lowercase URL slug (hyphen-separated) based on the translated title/name in {$targetName}.
 6. Output MUST be a valid JSON object whose keys exactly match the input JSON keys, with values translated into {$targetName}.
 PROMPT;
 
-        $userPrompt = "Translate this JSON from {$sourceName} to {$targetName}:\n" . json_encode($payloadData, JSON_UNESCAPED_UNICODE);
+        $encodedPayload = json_encode($payloadData, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '{}';
 
-        $lastError = null;
+        return $systemPrompt . "\n\nTranslate this JSON from {$sourceName} to {$targetName}:\n" . $encodedPayload;
+    }
 
-        foreach ($this->models as $model) {
-            $apiVersion = (str_contains($model, 'preview') || str_contains($model, 'latest')) ? 'v1beta' : 'v1';
-            $endpoint = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$model}:generateContent?key={$this->apiKey}";
-
-            $attempts = 0;
-            $maxAttempts = 2; // Allow 1 quick retry for transient 503 (high demand spike)
-
-            while ($attempts < $maxAttempts) {
-                $attempts++;
-                try {
-                    Log::info("Gemini translating to {$targetLanguage} via {$model} ({$apiVersion}), attempt {$attempts}");
-
-                    $response = Http::connectTimeout(10)
-                        ->timeout(45)
-                        ->post($endpoint, [
-                            'contents' => [
-                                [
-                                    'parts' => [
-                                        ['text' => $systemPrompt . "\n\n" . $userPrompt],
-                                    ],
-                                ],
-                            ],
-                            'generationConfig' => [
-                                'response_mime_type' => 'application/json',
-                                'temperature' => 0.1,
-                            ],
-                        ]);
-
-                    if ($response->successful()) {
-                        $parts = $response->json('candidates.0.content.parts', []);
-                        $rawText = '';
-                        foreach ($parts as $part) {
-                            if (isset($part['text']) && !($part['thought'] ?? false)) {
-                                $rawText .= $part['text'];
-                            }
-                        }
-
-                        if (empty($rawText)) {
-                            $rawText = (string) $response->json('candidates.0.content.parts.0.text', '');
-                        }
-
-                        if (filled($rawText)) {
-                            $decoded = $this->parseJsonResponse($rawText);
-
-                            // If model wrapped response inside {"en": {...}} or {"data": {...}}, unwrap it
-                            if (isset($decoded[$targetLanguage]) && is_array($decoded[$targetLanguage])) {
-                                $decoded = $decoded[$targetLanguage];
-                            }
-
-                            if (is_array($decoded) && !empty($decoded)) {
-                                Log::info("Gemini translation to {$targetLanguage} succeeded via {$model}");
-                                return $decoded;
-                            }
-                        }
-                    }
-
-                    $statusCode = $response->status();
-                    $errorMsg = $response->json('error.message') ?? $response->body();
-
-                    // If 503 (High Demand spike), wait 1.5s and retry once
-                    if ($statusCode === 503 && $attempts < $maxAttempts) {
-                        Log::warning("Gemini model {$model} 503 high demand spike, retrying after 1.5s...");
-                        usleep(1500000);
-                        continue;
-                    }
-
-                    if ($statusCode === 429) {
-                        Log::warning("Gemini model {$model} quota exceeded (429), switching to next model.");
-                        $lastError = "Model {$model} kvota limiti aşılıb (429).";
-                        break;
-                    }
-
-                    $lastError = "Model {$model} (Status {$statusCode}): " . Str::limit($errorMsg, 200);
-                    Log::warning("Gemini model {$model} error: {$lastError}");
-                    break;
-                } catch (Exception $e) {
-                    $lastError = "Model {$model} exception: " . $e->getMessage();
-                    Log::warning("Gemini model {$model} exception: {$lastError}");
-                    break;
-                }
+    /**
+     * Extract and decode the JSON object from a Gemini HTTP response.
+     */
+    protected function extractTranslatedArray(Response $response, string $targetLanguage): ?array
+    {
+        $parts = $response->json('candidates.0.content.parts', []);
+        $rawText = '';
+        foreach ($parts as $part) {
+            if (isset($part['text']) && ! ($part['thought'] ?? false)) {
+                $rawText .= $part['text'];
             }
         }
 
-        Log::error("Gemini translation failed for {$targetLanguage}: " . $lastError);
-        throw new Exception("Gemini tərcümə xətası ({$targetName}): " . ($lastError ?: 'Cavab alınmadı.'));
+        if (empty($rawText)) {
+            $rawText = (string) $response->json('candidates.0.content.parts.0.text', '');
+        }
+
+        if (! filled($rawText)) {
+            return null;
+        }
+
+        $decoded = $this->parseJsonResponse($rawText);
+
+        // If model wrapped response inside {"en": {...}}, unwrap it
+        if (isset($decoded[$targetLanguage]) && is_array($decoded[$targetLanguage])) {
+            $decoded = $decoded[$targetLanguage];
+        }
+
+        return is_array($decoded) && ! empty($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Replace base64 data URIs with lightweight placeholders before sending to LLM.
+     *
+     * @return array{0: array<string, mixed>, 1: array<string, string>}
+     */
+    protected function extractInlineDataUris(array $payload): array
+    {
+        $map = [];
+        $counter = 0;
+
+        array_walk_recursive($payload, function (&$value) use (&$map, &$counter) {
+            if (! is_string($value) || ! str_contains($value, 'data:')) {
+                return;
+            }
+
+            $value = preg_replace_callback('/data:[^;"\'\s>]+;base64,[A-Za-z0-9+\/=]+/', function ($matches) use (&$map, &$counter) {
+                $token = "__INLINE_DATA_{$counter}__";
+                $counter++;
+                $map[$token] = $matches[0];
+
+                return $token;
+            }, $value);
+        });
+
+        return [$payload, $map];
+    }
+
+    /**
+     * Restore placeholder tokens back to original base64 data URIs.
+     */
+    protected function restoreInlineDataUris(array $decoded, array $map): array
+    {
+        if (empty($map)) {
+            return $decoded;
+        }
+
+        array_walk_recursive($decoded, function (&$value) use ($map) {
+            if (is_string($value)) {
+                $value = strtr($value, $map);
+            }
+        });
+
+        return $decoded;
+    }
+
+    /**
+     * Ensure strings are valid UTF-8 so Livewire JSON serialization never crashes.
+     */
+    protected function sanitizeUtf8(string $text): string
+    {
+        return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
     }
 
     /**
@@ -183,7 +318,7 @@ PROMPT;
      */
     protected function parseJsonResponse(string $rawText): ?array
     {
-        $clean = trim($rawText);
+        $clean = trim($this->sanitizeUtf8($rawText));
 
         // Strip markdown code fences if present (e.g. ```json ... ```)
         if (preg_match('/```(?:json)?\s*([\s\S]*?)\s*```/i', $clean, $matches)) {
@@ -193,7 +328,7 @@ PROMPT;
         $decoded = json_decode($clean, true);
 
         // Fallback: extract substring between outermost { and }
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             $firstBrace = strpos($clean, '{');
             $lastBrace = strrpos($clean, '}');
             if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
@@ -202,7 +337,7 @@ PROMPT;
             }
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
 
