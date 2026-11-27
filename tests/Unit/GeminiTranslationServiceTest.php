@@ -126,6 +126,52 @@ class GeminiTranslationServiceTest extends TestCase
         $this->assertSame(3, $ruCalls, 'Failed language should retry 503 once and succeed on fallback model.');
     }
 
+    public function test_uses_minimal_thinking_when_falling_back_to_gemini_3_flash_preview(): void
+    {
+        Config::set('services.gemini.api_key', 'test-key');
+        Config::set('services.gemini.model', 'gemini-3.5-flash-lite');
+
+        $seenModels = [];
+        $previewThinkingLevel = null;
+
+        Http::fake(function (Request $request) use (&$seenModels, &$previewThinkingLevel) {
+            $url = $request->url();
+            if (preg_match('#/models/([^:]+):generateContent#', $url, $m)) {
+                $seenModels[] = $m[1];
+            }
+
+            if (str_contains($url, 'gemini-3-flash-preview')) {
+                $previewThinkingLevel = $request->data()['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null;
+
+                return Http::response([
+                    'candidates' => [[
+                        'content' => [
+                            'parts' => [[
+                                'text' => json_encode(['title' => 'Translated']),
+                            ]],
+                        ],
+                    ]],
+                ], 200);
+            }
+
+            return Http::response(['error' => ['message' => 'Busy']], 503);
+        });
+
+        $result = app(GeminiTranslationService::class)->translateFields(['title' => 'Test'], ['en']);
+
+        $this->assertSame('Translated', $result['en']['title']);
+        $this->assertSame('minimal', $previewThinkingLevel);
+        $this->assertSame([
+            'gemini-3.5-flash-lite',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-flash-lite-latest',
+            'gemini-3-flash-preview',
+        ], $seenModels);
+    }
+
     public function test_throws_clean_utf8_exception_when_all_models_fail(): void
     {
         Config::set('services.gemini.api_key', 'test-key');

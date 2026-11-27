@@ -12,9 +12,9 @@ use Throwable;
 
 class GeminiTranslationService
 {
-    protected const TOTAL_BUDGET_SECONDS = 45.0;
-    protected const MAX_REQUEST_TIMEOUT_SECONDS = 22;
-    protected const CONNECT_TIMEOUT_SECONDS = 5;
+    protected const TOTAL_BUDGET_SECONDS = 300.0;
+    protected const MAX_REQUEST_TIMEOUT_SECONDS = 120;
+    protected const CONNECT_TIMEOUT_SECONDS = 15;
 
     protected ?string $apiKey;
     protected array $models;
@@ -25,13 +25,13 @@ class GeminiTranslationService
         $primaryModel = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-3.5-flash-lite');
 
         // Resilient, ultra-fast, high-quota models across multiple model clusters.
-        // gemini-3.5-flash-lite is primary, gemini-3-flash-preview provides instant fallback when lite cluster experiences 503 spikes.
+        // Fast flash-lite models go first; gemini-3-flash-preview serves as fallback with minimal thinking.
         $this->models = array_values(array_unique(array_filter([
             $primaryModel,
             'gemini-3.5-flash-lite',
-            'gemini-3-flash-preview',
             'gemini-3.1-flash-lite',
             'gemini-flash-lite-latest',
+            'gemini-3-flash-preview',
         ])));
     }
 
@@ -45,7 +45,7 @@ class GeminiTranslationService
      */
     public function translateFields(array $data, array $targetLanguages = ['en', 'ru'], string $sourceLanguage = 'az'): array
     {
-        @set_time_limit(180);
+        @set_time_limit(360);
 
         if (empty($this->apiKey)) {
             throw new Exception('Gemini API açarı (.env daxilində GEMINI_API_KEY) təyin edilməyib.');
@@ -91,7 +91,18 @@ class GeminiTranslationService
                     $prompts[$lang] = $this->buildPrompt($sanitizedPayload, $lang, $sourceLanguage);
                 }
 
-                $responses = Http::pool(function (Pool $pool) use ($prompts, $endpoint, $requestTimeout) {
+                $generationConfig = [
+                    'response_mime_type' => 'application/json',
+                    'temperature' => 0.1,
+                ];
+
+                if (str_contains($model, 'gemini-3') && ! str_contains($model, 'lite') && $apiVersion === 'v1beta') {
+                    $generationConfig['thinkingConfig'] = [
+                        'thinkingLevel' => 'minimal',
+                    ];
+                }
+
+                $responses = Http::pool(function (Pool $pool) use ($prompts, $endpoint, $requestTimeout, $generationConfig) {
                     $requests = [];
                     foreach ($prompts as $lang => $prompt) {
                         $requests[] = $pool->as($lang)
@@ -105,10 +116,7 @@ class GeminiTranslationService
                                         ],
                                     ],
                                 ],
-                                'generationConfig' => [
-                                    'response_mime_type' => 'application/json',
-                                    'temperature' => 0.1,
-                                ],
+                                'generationConfig' => $generationConfig,
                             ]);
                     }
 
