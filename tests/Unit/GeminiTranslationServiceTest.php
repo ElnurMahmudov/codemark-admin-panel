@@ -3,12 +3,19 @@
 namespace Tests\Unit;
 
 use App\Filament\Actions\TranslateWithAiAction;
+use App\Filament\Resources\BlogPosts\Schemas\BlogPostForm;
 use App\Services\GeminiTranslationService;
 use Exception;
 use Filament\Forms\Components\RichEditor\RichContentRenderer;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Concerns\InteractsWithSchemas;
+use Filament\Schemas\Contracts\HasSchemas;
+use Filament\Schemas\Schema;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Livewire\Component;
 use Tests\TestCase;
 
 class GeminiTranslationServiceTest extends TestCase
@@ -201,5 +208,47 @@ class GeminiTranslationServiceTest extends TestCase
 
         $doc = RichContentRenderer::make()->getEditor()->setContent($valid)->getDocument();
         $this->assertSame('doc', $doc['type']);
+    }
+
+    public function test_blog_post_form_reads_and_writes_rich_editor_content_across_sections(): void
+    {
+        $livewire = new class extends Component implements HasSchemas
+        {
+            use InteractsWithSchemas;
+
+            public ?array $data = [];
+
+            public function form(Schema $schema): Schema
+            {
+                return BlogPostForm::configure($schema)->statePath('data');
+            }
+
+            public function render(): string
+            {
+                return '<div></div>';
+            }
+        };
+
+        $schema = $livewire->getSchema('form');
+        $schema->fill([
+            'title' => ['az' => 'Test Başlıq'],
+            'content' => ['az' => '<h2>Alt başlıq</h2><p>Azərbaycan mətni</p>'],
+        ]);
+
+        // Simulate action running on Section 1 ("Başlıq və Məlumatlar")
+        $section = $schema->getComponents()[0]->getChildSchema()->getComponents()[0];
+        $get = new Get($section);
+        $set = new Set($section);
+
+        $htmlRead = TranslateWithAiAction::readRichContent($livewire, $get, 'content.az');
+        $this->assertSame('<h2>Alt başlıq</h2><p>Azərbaycan mətni</p>', $htmlRead);
+
+        TranslateWithAiAction::writeRichContent($livewire, $set, 'content.en', '<h2>Subheading</h2><p>English text</p>');
+
+        $this->assertIsArray($livewire->data['content']['en']);
+        $this->assertSame('doc', $livewire->data['content']['en']['type']);
+
+        $enHtml = TranslateWithAiAction::readRichContent($livewire, $get, 'content.en');
+        $this->assertSame('<h2>Subheading</h2><p>English text</p>', $enHtml);
     }
 }

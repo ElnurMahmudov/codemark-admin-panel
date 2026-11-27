@@ -5,9 +5,12 @@ namespace App\Filament\Actions;
 use App\Services\GeminiTranslationService;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\RichEditor\RichContentRenderer;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Contracts\HasSchemas;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
@@ -73,9 +76,9 @@ class TranslateWithAiAction
     public static function forBlogPost(): Action
     {
         return static::baseAction()
-            ->action(function (Get $get, Set $set) {
+            ->action(function (Get $get, Set $set, mixed $livewire) {
                 $azTitle = $get('title.az');
-                $azContent = $get('content.az');
+                $azContent = static::readRichContent($livewire, $get, 'content.az');
 
                 if (blank($azTitle) && blank($azContent)) {
                     static::notifyMissingSource('Zəhmət olmasa, əvvəlcə Azərbaycan (AZ) tabında ən azı başlıq və ya məzmun qeyd edin.');
@@ -97,18 +100,15 @@ class TranslateWithAiAction
                 static::executeTranslation(
                     $payload,
                     'Məqalənin başlığı, linki, mətni və SEO sahələri İngilis və Rus dillərinə tərcümə olundu.',
-                    function (string $lang, array $item) use ($set) {
+                    function (string $lang, array $item) use ($set, $livewire) {
                         if (! empty($item['title']) && is_string($item['title'])) {
                             $set("title.{$lang}", $item['title']);
                         }
                         static::applySlug($set, $lang, $item['slug'] ?? null, $item['title'] ?? null);
                         if (! empty($item['excerpt'])) $set("excerpt.{$lang}", $item['excerpt']);
                         if (! empty($item['author'])) $set("author.{$lang}", $item['author']);
-                        if (! empty($item['content']) && is_string($item['content'])) {
-                            $normalizedContent = static::normalizeRichContent($item['content']);
-                            if ($normalizedContent !== null) {
-                                $set("content.{$lang}", $normalizedContent);
-                            }
+                        if (! empty($item['content'])) {
+                            static::writeRichContent($livewire, $set, "content.{$lang}", $item['content']);
                         }
                         if (! empty($item['meta_title'])) $set("meta_title.{$lang}", $item['meta_title']);
                         if (! empty($item['meta_description'])) $set("meta_description.{$lang}", $item['meta_description']);
@@ -258,6 +258,89 @@ class TranslateWithAiAction
                 ->body(mb_convert_encoding($e->getMessage(), 'UTF-8', 'UTF-8'))
                 ->danger()
                 ->send();
+        }
+    }
+
+    /**
+     * Find a RichEditor component anywhere in the Livewire form schema (including nested Sections/Tabs).
+     */
+    protected static function findRichEditor(mixed $livewire, string $relativeStateKey): ?RichEditor
+    {
+        if (! $livewire instanceof HasSchemas) {
+            return null;
+        }
+
+        $schema = $livewire->getSchema('form');
+        if (! $schema) {
+            return null;
+        }
+
+        foreach ($schema->getFlatComponents(withHidden: true) as $component) {
+            if (! $component instanceof RichEditor) {
+                continue;
+            }
+
+            $statePath = $component->getStatePath();
+            if ($statePath === $relativeStateKey || str_ends_with($statePath, ".{$relativeStateKey}")) {
+                return $component;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Read RichEditor state as clean HTML string (avoiding sending raw TipTap AST JSON to Gemini).
+     */
+    public static function readRichContent(mixed $livewire, Get $get, string $key): ?string
+    {
+        $editor = static::findRichEditor($livewire, $key);
+        $value = $editor ? $editor->getState() : $get($key);
+
+        if (is_array($value)) {
+            if (empty($value['content'])) {
+                return null;
+            }
+
+            $value = RichContentRenderer::make()->getEditor()->setContent($value)->getHtml();
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        return static::normalizeRichContent($value);
+    }
+
+    /**
+     * Write translated HTML/TipTap content back through RichEditor's StateCast so TipTap & Livewire stay synced.
+     */
+    public static function writeRichContent(mixed $livewire, Set $set, string $key, mixed $content): void
+    {
+        $editor = static::findRichEditor($livewire, $key);
+
+        if (is_string($content)) {
+            $normalized = static::normalizeRichContent($content);
+            if ($normalized === null) {
+                return;
+            }
+
+            if ($editor) {
+                $editor->state($normalized);
+            } else {
+                $doc = RichContentRenderer::make()->getEditor()->setContent($normalized)->getDocument();
+                $set($key, $doc);
+            }
+
+            return;
+        }
+
+        if (is_array($content) && isset($content['type'])) {
+            if ($editor) {
+                $editor->state($content);
+            } else {
+                $set($key, $content);
+            }
         }
     }
 
